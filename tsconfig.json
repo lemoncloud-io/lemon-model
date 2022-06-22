@@ -5,7 +5,6 @@
         "module": "commonjs",
         "resolveJsonModule": true,
         "esModuleInterop": true,
-        "emitDeclarationOnly": true,
         "removeComments": false,
         "emitDecoratorMetadata": true,
         "target": "es6",
@@ -21,9 +20,6 @@
             ]
         },
         "plugins": [
-            {
-                "transform": "ts-transformer-keys/transformer"
-            }
         ],
         "declaration": true,
         "incremental": false
