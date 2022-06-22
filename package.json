@@ -12,14 +12,13 @@
     "doc:html": "typedoc src/ --exclude **/*.spec.ts --target ES6 --mode file --out dist/docs",
     "doc:publish": "npm run doc:html && gh-pages -m \"docs(gh-pages): publish gh-pages via typedoc\" -d dist/docs",
     "lint": "tsc --noEmit && eslint '*/**/*.{js,ts,jsx,tsx}' --fix",
-    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
+    "format": "prettier --write \"src/**/*.ts\"",
     "!test": "------- run self-test with jest -----",
     "test": "jest --config=jest.config.json",
     "test:watch": "jest --config=jest.config.json --watchAll",
     "!publish": "------- publish into repository -----",
     "prepare": "npm run build",
-    "!prepublishOnly": "npm test && npm run lint && npm run format",
-    "prepublishOnly": "npm test && npm run lint"
+    "prepublishOnly": "npm test && npm run lint && npm run format"
   },
   "husky": {
     "hooks": {
