@@ -108,4 +108,6 @@ export interface CoreModel<ModelType extends string = string> extends StorageMod
 //NOTE! - BE WARE TO USE `ts-transformer-keys` DUE TO MISSING `ttypescript`
 // export const CORE_FIELDS: string[] = keys<CoreModel>().filter(_ => !_.startsWith('_'));
 // _inf(NS, '! CORE_FIELDS =', CORE_FIELDS.join(', ')); // for debugging.
-export const CORE_FIELDS: string[] = 'ns,type,sid,uid,gid,lock,next,meta,createdAt,updatedAt,deletedAt'.split(',');
+export const CORE_FIELDS: string[] = 'ns,type,stereo,sid,uid,gid,lock,next,meta,createdAt,updatedAt,deletedAt'.split(
+    ',',
+);
