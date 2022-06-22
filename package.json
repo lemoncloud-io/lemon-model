@@ -1,0 +1,85 @@
+{
+  "name": "lemon-model",
+  "version": "1.0.0",
+  "description": "Lemon Serverless Micro-Service Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "npm run build-ts",
+    "build-ts": "tsc -v && tsc",
+    "watch-ts": "tsc -w",
+    "doc": "npm run doc:html && open dist/docs/index.html",
+    "doc:html": "typedoc src/ --exclude **/*.spec.ts --target ES6 --mode file --out dist/docs",
+    "doc:publish": "npm run doc:html && gh-pages -m \"docs(gh-pages): publish gh-pages via typedoc\" -d dist/docs",
+    "lint": "tsc --noEmit && eslint '*/**/*.{js,ts,jsx,tsx}' --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
+    "!test": "------- run self-test with jest -----",
+    "test": "jest --config=jest.config.json",
+    "test:watch": "jest --config=jest.config.json --watchAll",
+    "!publish": "------- publish into repository -----",
+    "prepare": "npm run build",
+    "!prepublishOnly": "npm test && npm run lint && npm run format",
+    "prepublishOnly": "npm test && npm run lint"
+  },
+  "husky": {
+    "hooks": {
+      "!pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "src/**/*.{js,ts,tsx,jsx}": [
+      "npm run lint",
+      "git add"
+    ]
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "engines": {
+    "node": ">=12.22.12"
+  },
+  "author": "Steve Jung <steve@lemoncloud.io>",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/async": "^3.2.3",
+    "@types/cookie-parser": "^1.4.2",
+    "@types/cors": "^2.8.7",
+    "@types/dotenv": "^6.1.1",
+    "@types/jest": "^27.4.1",
+    "@types/js-yaml": "^3.12.5",
+    "@types/mime-types": "^2.1.0",
+    "@types/supertest": "^2.0.10",
+    "@typescript-eslint/eslint-plugin": "^5.15.0",
+    "@typescript-eslint/parser": "^5.15.0",
+    "eslint": "^8.11.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "gh-pages": "^2.2.0",
+    "husky": "^2.2.0",
+    "jest": "^27.5.1",
+    "lint-staged": "^8.1.6",
+    "prettier": "^2.6.0",
+    "superagent": "^5.3.1",
+    "supertest": "^4.0.2",
+    "ts-jest": "^27.1.3",
+    "ts-node": "^8.10.2",
+    "ttypescript": "^1.5.13",
+    "typedoc": "^0.15.8",
+    "typescript": "^4.6.2"
+  },
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/lemoncloud-io/lemon-model.git"
+  },
+  "keywords": [
+    "lemoncloud",
+    "lemon-model",
+    "CoreModel"
+  ],
+  "bugs": {
+    "url": "https://github.com/lemoncloud-io/lemon-model/issues"
+  },
+  "homepage": "https://github.com/lemoncloud-io/lemon-model#readme"
+}
