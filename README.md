@@ -2,6 +2,14 @@
 
 Common shared model definitions for both backend and frontend.
 
+## Usage
+
+To develop backend-api, use `lemon-core` instead of this.
+
+```sh
+npm install --save lemon-core
+```
+
 
 ## Contribution
 
@@ -20,5 +28,4 @@ See [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md)
 
 | Version   | Description
 |--         |--
-| 1.0.0     | initial version by collecting from `lemon-core`
-
+| 1.0.0     | initial types out of the original `lemon-core@3.1.1`
