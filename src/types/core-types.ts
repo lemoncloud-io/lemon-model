@@ -35,6 +35,18 @@ export interface GeneralItem {
     [key: string]: string | string[] | number | number[];
 }
 
+/**
+ * type: simple data-types
+ * - it should be compartible with elastic-search.
+ * - it should be consistancy within same key name.
+ */
+export interface SimpleSet {
+    /**
+     * only has simple string or number w/o array.
+     */
+    [key: string]: string | number;
+}
+
 /** ********************************************************************************************************************
  *  COMMON Interfaces
  ** ********************************************************************************************************************/
