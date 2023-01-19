@@ -141,3 +141,10 @@ export const expect2 = (test: any, view?: string): any => {
         return expect(GETERR(e));
     }
 };
+
+describe('index', () => {
+    //! test transformer
+    it('should pass basic test', async () => {
+        expect2(() => GETERR(new Error('some'))).toEqual('some');
+    });
+});
