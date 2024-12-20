@@ -7,6 +7,7 @@
  * @date        2019-11-20 initial version
  * @date        2020-01-03 support cognito-identity
  * @date        2021-12-07 support SearchBody
+ * @date        2024-12-20 optimized `NextIdentityCognito`
  *
  * @copyright   (C) lemoncloud.io 2019 - All Rights Reserved.
  */
@@ -146,6 +147,14 @@ export interface NextIdentityCognito<T = any> extends NextIdentity<T> {
      * - available since `3.1.1`
      */
     caller?: string;
+    /**
+     * (optional) access-key used to sign.
+     */
+    accessKey?: string;
+    /**
+     * (optional) api-key if applicable.
+     */
+    apiKey?: string;
 }
 
 /**

@@ -1,13 +1,13 @@
 # lemon-model
 
-Common shared model definitions for both backend and frontend.
+Common shared model definitions for both `backend` and `frontend`.
 
 ## Usage
 
 To develop backend-api, use `lemon-core` instead of this.
 
 ```sh
-npm install --save lemon-core
+$ npm install --save lemon-core
 ```
 
 
@@ -28,4 +28,5 @@ See [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md)
 
 | Version   | Description
 |--         |--
+| 1.0.3     | optimized `NextIdentityCognito`
 | 1.0.0     | initial types out of the original `lemon-core@3.1.1`
