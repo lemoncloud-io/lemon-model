@@ -239,9 +239,17 @@ export interface NextContext<T extends NextIdentity = NextIdentity> {
      */
     domain?: string;
     /**
-     * cookie string of origin request
+     * (optional) cookie string of origin request if available.
      */
     cookie?: { [key: string]: string };
+    /**
+     * (optional) `referer` in request headers if applicable.
+     */
+    referer?: string;
+    /**
+     * (optional) `origin` in request headers if applicable.
+     */
+    origin?: string;
     /**
      * calling depth for every handler. ( automatically increased from lambda-handler )
      */

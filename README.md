@@ -28,5 +28,6 @@ See [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md)
 
 | Version   | Description
 |--         |--
+| 1.0.4     | optimized `NextIdentity` with `referer` and `origin`.
 | 1.0.3     | optimized `NextIdentityCognito`
 | 1.0.0     | initial types out of the original `lemon-core@3.1.1`
