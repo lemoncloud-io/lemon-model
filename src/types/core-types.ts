@@ -241,7 +241,13 @@ export interface NextContext<T extends NextIdentity = NextIdentity> {
     /**
      * (optional) cookie string of origin request if available.
      */
-    cookie?: { [key: string]: string };
+    cookie?: {
+        [key: string]: string;
+    };
+    /**
+     * (optional) `authorization` in request headers if applicable.
+     */
+    authorization?: string;
     /**
      * (optional) `referer` in request headers if applicable.
      */
