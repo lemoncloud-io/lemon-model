@@ -8,6 +8,7 @@
  * @date        2020-01-03 support cognito-identity
  * @date        2021-12-07 support SearchBody
  * @date        2024-12-20 optimized `NextIdentityCognito`
+ * @date        2025-05-13 optimized `NextContext` with `Authorization` header
  *
  * @copyright   (C) lemoncloud.io 2019 - All Rights Reserved.
  */
