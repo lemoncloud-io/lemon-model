@@ -4,9 +4,10 @@ Common shared model definitions for both `backend` and `frontend`.
 
 ## Usage
 
-To develop backend-api, use [lemon-core](https://github.com/lemoncloud-io/lemon-core) instead of this.
+!TIP! to develop `backend` api, use [lemon-core](https://github.com/lemoncloud-io/lemon-core) instead of this.
 
 ```sh
+# install with npm
 npm install --save lemon-model
 ```
 
@@ -22,10 +23,11 @@ See [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md)
 
 ----------------
 
-# VERSION INFO
+## VERSION INFO
 
 | Version   | Description
 |--         |--
+| 1.0.6     | optimized `SearchBody` with `knn` support.
 | 1.0.5     | optimized `NextIdentity` with `authorization`.
 | 1.0.4     | optimized `NextIdentity` with `referer` and `origin`.
 | 1.0.3     | optimized `NextIdentityCognito`
