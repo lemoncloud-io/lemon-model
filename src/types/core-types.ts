@@ -8,6 +8,7 @@
  * @date        2020-01-03 support cognito-identity
  * @date        2021-12-07 support SearchBody
  * @date        2024-12-20 optimized `NextIdentityCognito`
+ * @date        2025-06-12 optimized `SearchBody` w/ `knn` support
  *
  * @copyright   (C) lemoncloud.io 2019 - All Rights Reserved.
  */
@@ -315,7 +316,9 @@ export interface QueryResult<T> {
 }
 
 /**
- * 쿼리의 각 항목의 값들
+ * type: `QueryTerm`
+ * - query term for search.
+ * - it should be compartible with elastic-search.
  */
 export type QueryTerm =
     | string
@@ -326,7 +329,9 @@ export type QueryTerm =
     | { query: { query_string: { default_field?: string; query: string } } };
 
 /**
- * 정렬(sort)에 쓰이는 항목.
+ * type: `SortTerm`
+ * - sort term for search.
+ * - it should be compartible with elastic-search.
  */
 /* eslint-disable @typescript-eslint/indent */
 export type SortTerm =
@@ -341,7 +346,9 @@ export type SortTerm =
 /* eslint-enable @typescript-eslint/indent */
 
 /**
- * 검색 쿼리 항목.
+ * type: `SearchQuery`
+ * - search query for elastic-search.
+ * - it should be compartible with elastic-search.
  */
 export interface SearchQuery {
     term?: { [key: string]: QueryTerm };
@@ -366,6 +373,28 @@ export interface SearchQuery {
         must_not?: SearchQuery | SearchQuery[];
         should?: SearchQuery | SearchQuery[];
         minimum_should_match?: number;
+    };
+    /** required to have mapping type: `knn_vector` */
+    knn?: {
+        /** field (ex: `vector$.sm3`) to query */
+        [field: string]: {
+            vector: number[];
+            /** The number of nearest neighbors to return */
+            k?: number;
+            max_distance?: number;
+            min_score?: number;
+            filter?: SearchQuery;
+            method_parameters?: {
+                ef_search?: number;
+                nprobes?: number;
+            };
+            rescore?:
+                | {
+                      oversample_factor?: number;
+                  }
+                | boolean;
+            expand_nested_docs?: boolean;
+        };
     };
     query_string?: { query: string };
 }
