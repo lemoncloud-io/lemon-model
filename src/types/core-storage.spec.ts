@@ -24,6 +24,8 @@ describe('core-storage', () => {
             'lock',
             'next',
             'meta',
+            'error',
+            '$',
             'createdAt',
             'updatedAt',
             'deletedAt',

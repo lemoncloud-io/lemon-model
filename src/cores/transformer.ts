@@ -8,7 +8,7 @@
  *
  * @copyright (C) 2023 LemonCloud Co Ltd. - All Rights Reserved.
  */
-import { CoreModel } from '../types/core-storage';
+import { CoreModel, CoreModifier } from '../types/core-storage';
 
 /**
  * internal type `Model`
@@ -18,23 +18,7 @@ type Model = CoreModel<string>;
 /**
  * partial set of `CoreModel`
  */
-export interface Cores {
-    /**
-     * site-id of model
-     * - inited by `identity-token` if use session
-     */
-    sid?: string;
-    /**
-     * user-id of model
-     * - inited by `identity-token` if use session
-     */
-    uid?: string;
-    /**
-     *  group-id of model
-     * - inited by `identity-token` if use session
-     */
-    gid?: string;
-}
+export type Cores = CoreModifier;
 
 /**
  * common `View` types.
@@ -144,13 +128,33 @@ export abstract class AbstractTransformer<MyModel extends Model, MyView extends 
      * extract only the defined attribute.
      * ex) `{ a:1, b: undefined }` -> `{ a:1 }`
      */
-    public onlyDefined = <T extends object>(N: T) =>
+    public onlyDefined = <T extends object>(N: T): T =>
         N && typeof N === 'object'
             ? Object.entries(N).reduce<T>((N, [k, v]) => {
                   if (v !== undefined) N[k as keyof T] = v;
                   return N;
               }, {} as T)
             : null;
+
+    /**
+     * convert to `Cores` view from model
+     *
+     * @param $ the cores in model
+     * @param model the original model
+     */
+    public asCores($?: Cores, model?: MyModel): Cores {
+        if (!$) {
+            if (typeof model?.sid === 'string') return this.asCores(model);
+            return undefined;
+        }
+        return this.onlyDefined<Cores>({
+            aid: $.aid ?? undefined,
+            sid: $.sid ?? undefined,
+            gid: $.gid ?? undefined,
+            uid: $.uid ?? undefined,
+            rev: $.rev ?? undefined,
+        });
+    }
 
     /**
      * transform from model to view
@@ -164,14 +168,13 @@ export abstract class AbstractTransformer<MyModel extends Model, MyView extends 
             createdAt: model.createdAt,
             updatedAt: model.updatedAt,
             deletedAt: model.deletedAt,
+            error: model.error ? model.error : undefined,
+            //NOTE - activated automatically when there is valid `$` in model.
+            $: model.$ ? this.asCores(model.$, model) : undefined,
         };
-        if (model.error) view.error = model.error;
         if (hasCores) {
-            const $ = this.onlyDefined<Cores>({
-                sid: model.sid,
-                gid: model.gid,
-                uid: model.uid,
-            });
+            //* overwrite cores with original model's values.
+            const $ = this.asCores(model);
             Object.assign(view, { $ });
         }
         return this.onlyDefined<MyView>(view as MyView);

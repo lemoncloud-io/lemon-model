@@ -63,18 +63,23 @@ export interface CoreModel<ModelType extends string = string> extends StorageMod
      * stereo: stereo-type in common type.
      */
     stereo?: string;
+
     /**
      * site-id
+     * - initial site-id from `session-token` if use session
      */
     sid?: string;
     /**
      * user-id
+     * - initial user-id from `session-token` if use session
      */
     uid?: string;
     /**
      *  group-id
+     * - initial group-id from `session-token` if use session
      */
     gid?: string;
+
     /**
      * lock count to secure sync
      */
@@ -83,31 +88,73 @@ export interface CoreModel<ModelType extends string = string> extends StorageMod
      * next sequence number (use `nextSeq()`)
      */
     next?: number;
+
     /**
      * meta the json stringified string.
      */
     meta?: string | any;
     /**
+     * last error message if error occurred
+     */
+    error?: string;
+
+    /**
      * created timestamp
+     * - initial created timestamp
      */
     createdAt?: number;
     /**
      * updated timestamp
+     * - updated timestamp after modified
      */
     updatedAt?: number;
     /**
      * deleted timestamp
+     * - deleted timestamp after removed
      */
     deletedAt?: number;
+
     /**
-     * error message will be set if error occurred
+     * (optional) the modifier information.
+     * - can't update manually.
      */
-    error?: string;
+    readonly $?: CoreModifier;
+}
+
+/**
+ * partial set of `CoreModel`
+ */
+export interface CoreModifier {
+    /**
+     *  auth-id of model
+     * - inited by `session-token` if use session
+     */
+    aid?: string;
+    /**
+     * site-id of model
+     * - inited by `session-token` if use session
+     */
+    sid?: string;
+    /**
+     * user-id of model
+     * - inited by `session-token` if use session
+     */
+    uid?: string;
+    /**
+     *  group-id of model
+     * - inited by `session-token` if use session
+     */
+    gid?: string;
+
+    /**
+     * (optinal) revision number
+     * - manally incremented when updated
+     */
+    rev?: number;
 }
 
 //NOTE! - BE WARE TO USE `ts-transformer-keys` DUE TO MISSING `ttypescript`
 // export const CORE_FIELDS: string[] = keys<CoreModel>().filter(_ => !_.startsWith('_'));
 // _inf(NS, '! CORE_FIELDS =', CORE_FIELDS.join(', ')); // for debugging.
-export const CORE_FIELDS: string[] = 'ns,type,stereo,sid,uid,gid,lock,next,meta,createdAt,updatedAt,deletedAt'.split(
-    ',',
-);
+export const CORE_FIELDS: string[] =
+    'ns,type,stereo,sid,uid,gid,lock,next,meta,error,$,createdAt,updatedAt,deletedAt'.split(',');
