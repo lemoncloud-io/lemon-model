@@ -8,7 +8,7 @@
  *
  * @copyright (C) 2023 LemonCloud Co Ltd. - All Rights Reserved.
  */
-import { CoreModel } from '../types/core-storage';
+import { CoreModel, CoreModifier } from '../types/core-storage';
 
 /**
  * internal type `Model`
@@ -18,7 +18,7 @@ type Model = CoreModel<string>;
 /**
  * partial set of `CoreModel`
  */
-export interface Cores {
+export interface Cores extends Partial<CoreModifier> {
     /**
      * site-id of model
      * - inited by `identity-token` if use session
@@ -144,8 +144,10 @@ export abstract class AbstractTransformer<MyModel extends Model, MyView extends 
      * extract only the defined attribute.
      * ex) `{ a:1, b: undefined }` -> `{ a:1 }`
      */
-    public onlyDefined = <T extends object>(N: T) =>
-        N && typeof N === 'object'
+    public onlyDefined = <T extends object>(N?: T | null): T | null =>
+        N === undefined || N === null
+            ? N
+            : N && typeof N === 'object'
             ? Object.entries(N).reduce<T>((N, [k, v]) => {
                   if (v !== undefined) N[k as keyof T] = v;
                   return N;
@@ -157,7 +159,7 @@ export abstract class AbstractTransformer<MyModel extends Model, MyView extends 
      *
      * @see Transformable.modelAsView
      */
-    public modelAsView(model: MyModel, hasCores?: boolean): MyView {
+    public modelAsView(model?: MyModel | null, hasCores?: boolean): MyView {
         if (!model || typeof model !== 'object') return null;
         const view: View = {
             id: model.id,

@@ -36,10 +36,29 @@ export interface StorageModel extends InternalKey {
 }
 
 /**
+ * class: `CoreModifier`
+ * - common modifier information for core-model
+ */
+export interface CoreModifier {
+    /**
+     * site-id
+     */
+    sid?: string;
+    /**
+     * user-id
+     */
+    uid?: string;
+    /**
+     *  group-id
+     */
+    gid?: string;
+}
+
+/**
  * class: `InternalModel`
  * - common internal properties. (ONLY FOR INTERNAL PROCESSING)
  */
-export interface InternalModel {
+export interface InternalModel extends CoreModifier {
     /**
      * internal unique partition-key (valid if using default idName )
      */
@@ -51,6 +70,11 @@ export interface InternalModel {
  * - general model out of base Model to support the common usage
  */
 export interface CoreModel<ModelType extends string = string> extends StorageModel, InternalModel {
+    /**
+     * the last modifier info
+     * - set automatically when model is created/updated/deleted.
+     */
+    readonly $?: CoreModifier;
     /**
      * namespace
      */
@@ -106,8 +130,19 @@ export interface CoreModel<ModelType extends string = string> extends StorageMod
 }
 
 //NOTE! - BE WARE TO USE `ts-transformer-keys` DUE TO MISSING `ttypescript`
-// export const CORE_FIELDS: string[] = keys<CoreModel>().filter(_ => !_.startsWith('_'));
-// _inf(NS, '! CORE_FIELDS =', CORE_FIELDS.join(', ')); // for debugging.
-export const CORE_FIELDS: string[] = 'ns,type,stereo,sid,uid,gid,lock,next,meta,createdAt,updatedAt,deletedAt'.split(
-    ',',
-);
+export const CORE_FIELDS: string[] = [
+    '$',
+    'ns',
+    'type',
+    'stereo',
+    'sid',
+    'uid',
+    'gid',
+    'lock',
+    'next',
+    'meta',
+    'createdAt',
+    'updatedAt',
+    'deletedAt',
+    'error',
+];

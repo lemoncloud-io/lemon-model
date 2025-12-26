@@ -53,13 +53,14 @@ export class TestTransformer extends AbstractTransformer<TestModel, MyView, MyBo
     public modelAsView(model: TestModel, hasCores?: boolean): MyView {
         const view = super.modelAsView(model, hasCores);
         if (!view) return view;
-        return this.onlyDefined({
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        return this.onlyDefined<MyView>({
             ...view,
             ko: '',
             name: model.name,
             test: typeof model.test === 'number' ? model.test : undefined,
             bool: typeof model.bool === 'number' ? Boolean(model.bool) : undefined,
-        });
+        })!;
     }
     public bodyToModel(body: MyBody, isCreate?: boolean): TestModel {
         const model = super.bodyToModel(body, isCreate);

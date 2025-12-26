@@ -22,10 +22,15 @@ describe('TestTransformer', () => {
     it('should pass test transformer', async () => {
         const { trans } = instance();
 
+        expect2(() => trans.onlyDefined(undefined)).toEqual(undefined);
         expect2(() => trans.onlyDefined(null)).toEqual(null);
+        expect2(() => trans.onlyDefined('' as any)).toEqual(null);
+        expect2(() => trans.onlyDefined(0 as any)).toEqual(null);
+        expect2(() => trans.onlyDefined(false as any)).toEqual(null);
+        expect2(() => trans.onlyDefined(true as any)).toEqual(null);
 
-        expect2(() => trans.modelAsView(null)).toEqual(null);
-        expect2(() => trans.bodyToModel(null)).toEqual(null);
+        expect2(() => trans.modelAsView(null as any)).toEqual(null);
+        expect2(() => trans.bodyToModel(null as any)).toEqual(null);
 
         expect2(() => trans.modelAsView(1 as any)).toEqual(null);
         expect2(() => trans.bodyToModel(1 as any)).toEqual(null);
@@ -60,7 +65,7 @@ describe('TestTransformer', () => {
             id: '',
             name: '2',
         });
-        expect2(() => trans.bodyToModel({ id: null })).toEqual({
+        expect2(() => trans.bodyToModel({ id: null as any })).toEqual({
             id: '',
         });
 
@@ -79,7 +84,8 @@ describe('TestTransformer', () => {
         });
 
         //! test asDate().
-        expect2(() => trans.asDate(null)).toEqual('');
+        expect2(() => trans.asDate(null as any)).toEqual('');
+        expect2(() => trans.asDate('' as any)).toEqual('');
         expect2(() => trans.asDate('22-01-22')).toEqual('.date[22-01-22] is invalid format - asDate()');
         expect2(() => trans.asDate('2022-00-22')).toEqual('.date[2022-00-22] is invalid format - asDate()');
         expect2(() => trans.asDate('2022-01-00', 'some')).toEqual('.some[2022-01-00] is invalid format - asDate()');
