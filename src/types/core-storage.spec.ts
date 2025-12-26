@@ -15,6 +15,7 @@ describe('core-storage', () => {
     const expect2 = (a: any) => expect(typeof a === 'function' ? a() : a);
     it('should pass basic definitions', () => {
         expect2(() => CORE_FIELDS).toEqual([
+            '$',
             'ns',
             'type',
             'stereo',
@@ -27,6 +28,7 @@ describe('core-storage', () => {
             'createdAt',
             'updatedAt',
             'deletedAt',
+            'error',
         ]);
     });
 
