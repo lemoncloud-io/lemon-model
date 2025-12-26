@@ -42,16 +42,41 @@ describe('TestTransformer', () => {
             ko: '',
         });
 
-        expect2(() => trans.modelAsView({ sid: 's', uid: '' })).toEqual({
+        const M = { sid: 's', gid: 'g', uid: 'u' };
+        expect2(() => trans.modelAsView({ ...M })).toEqual({
             ko: '',
         });
-        expect2(() => trans.modelAsView({ sid: 's', gid: 'g', uid: 'u', next: 1, lock: 0 }, true)).toEqual({
+        expect2(() => trans.modelAsView({ ...M, next: 1, lock: 0 }, true)).toEqual({
             ko: '',
-            $: {
-                gid: 'g',
-                sid: 's',
-                uid: 'u',
-            },
+            $: { ...M },
+        });
+        expect2(() => trans.modelAsView({ ...M, next: 1, $: { uid: 'x' } }, true)).toEqual({
+            ko: '',
+            $: { ...M },
+        });
+        expect2(() => trans.modelAsView({ ...M, next: 1, $: null as any }, true)).toEqual({
+            ko: '',
+            $: { ...M },
+        });
+        expect2(() => trans.modelAsView({ ...M, next: 1, $: {} as any }, true)).toEqual({
+            ko: '',
+            $: { ...M },
+        });
+
+        //* check default view without cores
+        expect2(() => trans.modelAsView({ ...M, next: 1, $: { uid: 'x' } }, false)).toEqual({
+            ko: '',
+            $: { uid: 'x' },
+        });
+        expect2(() => trans.modelAsView({ ...M, next: 1, $: null as any }, false)).toEqual({
+            ko: '',
+        });
+        expect2(() => trans.modelAsView({ ...M, next: 1, $: undefined as any }, false)).toEqual({
+            ko: '',
+        });
+        expect2(() => trans.modelAsView({ ...M, next: 1, $: {} as any }, false)).toEqual({
+            ko: '',
+            $: {},
         });
 
         expect2(() => trans.modelAsView({ name: '2', test: 0, bool: 1 })).toEqual({

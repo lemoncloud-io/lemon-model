@@ -63,7 +63,9 @@ export interface View {
     error?: string;
 
     /**
-     * (optional) internal cores data
+     * (optional) internal cores modifier info.
+     * - present if `hasCores` is true in `modelAsView()`
+     * - or can be shown only if model has cores data.
      */
     readonly $?: Cores;
 }
@@ -155,25 +157,36 @@ export abstract class AbstractTransformer<MyModel extends Model, MyView extends 
             : null;
 
     /**
+     * transform the cores data
+     * @param cores the cores data to transform
+     * @returns transformed cores data or null
+     */
+    public asCore<T extends Cores>(cores?: T | null): T | null {
+        if (!cores || typeof cores !== 'object') return null;
+        const ret = {} as T;
+        if (cores.sid !== undefined) ret.sid = String(cores.sid);
+        if (cores.gid !== undefined) ret.gid = String(cores.gid);
+        if (cores.uid !== undefined) ret.uid = String(cores.uid);
+        return this.onlyDefined<T>(ret);
+    }
+
+    /**
      * transform from model to view
      *
      * @see Transformable.modelAsView
      */
     public modelAsView(model?: MyModel | null, hasCores?: boolean): MyView {
         if (!model || typeof model !== 'object') return null;
-        const view: View = {
+        const view = this.onlyDefined<View>({
+            $: model?.$ ?? undefined, // if null, remove it
             id: model.id,
             createdAt: model.createdAt,
             updatedAt: model.updatedAt,
             deletedAt: model.deletedAt,
-        };
+        });
         if (model.error) view.error = model.error;
         if (hasCores) {
-            const $ = this.onlyDefined<Cores>({
-                sid: model.sid,
-                gid: model.gid,
-                uid: model.uid,
-            });
+            const $ = this.asCore<Cores>(model);
             Object.assign(view, { $ });
         }
         return this.onlyDefined<MyView>(view as MyView);
