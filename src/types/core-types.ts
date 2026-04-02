@@ -289,9 +289,28 @@ export type NextHandler<TParam = any, TResult = any, TBody = any> = (
 ) => Promise<TResult>;
 
 /**
+ * (optional) addition options for `.decode()` function.
+ */
+export interface NextDecoderOptions {
+    /**
+     * the full path to request.
+     */
+    path?: string;
+    /**
+     * the current context.
+     */
+    context?: NextContext;
+}
+
+/**
  * Decode `NextHandler` by mode + id + cmd (+ path)
  */
-export type NextDecoder<TMode = NextMode> = (mode: TMode, id?: string, cmd?: string, path?: string) => NextHandler;
+export type NextDecoder<TMode = NextMode> = (
+    mode: TMode,
+    id?: string,
+    cmd?: string,
+    options?: NextDecoderOptions,
+) => NextHandler;
 
 /** ********************************************************************************************************************
  *  Search Services
