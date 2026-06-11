@@ -40,6 +40,17 @@ const clientId = client.connect(server);
 const sameClient = server.findPeer(clientId);
 ```
 
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+
+    Client->>Server: connect()
+    Server-->>Client: clientId
+    Client->>Server: send({ type, data, mid })
+    Server-->>Client: result with same mid
+```
+
 ## Network Model
 
 `Network` is the minimal transport used between connected peers.
@@ -225,6 +236,18 @@ await client.send({
 `jsonTransport` is directional. It affects messages sent by the peer that enabled it. To chunk large server results, enable `jsonTransport` on the server peer.
 
 Peer `maxPacketBytes` is the actual network packet limit. When peer `jsonTransport` is enabled and `chunkBytes` is not provided, the peer derives a safe `chunkBytes` value from its own `maxPacketBytes`. Standalone JSON transports can pass `chunkBytes` directly when exact control is needed.
+
+```mermaid
+flowchart TD
+    A[Peer sends message] --> B{JSON transport enabled}
+    B -- No --> C[Serialize full message]
+    B -- Yes --> D{Large leaf values}
+    D -- No --> C
+    D -- Yes --> E[Send manifest and chunks]
+    C --> F[Network sends raw string]
+    E --> F
+    F --> G[Receiver rebuilds message]
+```
 
 JSON transport removes completed receive state immediately. Incomplete receive state is cleaned opportunistically as packets arrive, manually with `cleanup(now?)`, or automatically when `cleanupIntervalMs` is configured.
 
