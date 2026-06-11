@@ -3,10 +3,33 @@
   "version": "1.2.0",
   "description": "Common shared model definitions for Lemon Micro-Service Platform",
   "main": "dist/index.js",
+  "module": "dist/esm/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./genai/testing": {
+      "types": "./dist/genai/testing.d.ts",
+      "import": "./dist/esm/genai/testing.js",
+      "require": "./dist/genai/testing.js",
+      "default": "./dist/genai/testing.js"
+    },
+    "./socket/testing": {
+      "types": "./dist/socket/testing.d.ts",
+      "import": "./dist/esm/socket/testing.js",
+      "require": "./dist/socket/testing.js",
+      "default": "./dist/socket/testing.js"
+    },
+    "./package.json": "./package.json"
+  },
   "scripts": {
-    "build": "npm run build-ts",
+    "build": "npm run build-ts && npm run build-esm",
     "build-ts": "tsc -v && tsc",
+    "build-esm": "tsc -p tsconfig.esm.json && node scripts/fix-esm-build.cjs",
     "watch-ts": "tsc -w",
     "doc": "npm run doc:html && open dist/docs/index.html",
     "doc:html": "typedoc src/ --exclude **/*.spec.ts --target ES6 --mode file --out dist/docs",
@@ -15,6 +38,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "!test": "------- run self-test with jest -----",
     "test": "jest --config=jest.config.json",
+    "test:package-exports": "npm run build && node scripts/check-package-exports.cjs",
     "test:watch": "jest --config=jest.config.json --watchAll",
     "!publish": "------- publish into repository -----",
     "prepare": "npm run build",

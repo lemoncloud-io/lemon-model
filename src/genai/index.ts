@@ -11,5 +11,5 @@ export * from './transport';
 export * from './dump-test';
 
 //! NOTE: test helpers (`./mocks`) are intentionally NOT re-exported here.
-//! Import them via the isolated `lemon-model/dist/genai/testing` entry so
+//! Import them via the isolated `lemon-model/genai/testing` entry so
 //! production (esp. frontend) bundles do not pull in test-only helpers.
