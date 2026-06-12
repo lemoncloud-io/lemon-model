@@ -2,7 +2,7 @@
  * `websocket.spec.ts`
  * - tests for the real-WebSocket → `NetworkSupportable` bridge and connection-id handshake.
  * - the bridge is extracted into the shared socket core (was `proxy/transport.ts` upstream),
- *   so its spec is owned here rather than ported from eureka-agents-api.
+ *   so its spec is owned here rather than ported from the source project.
  *
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */

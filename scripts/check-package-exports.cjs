@@ -6,7 +6,12 @@
  * @copyright (C) LemonCloud Co Ltd. - All Rights Reserved.
  */
 /** Public package entry points that must work in both package module systems. */
-const publicModuleNames = ['lemon-model', 'lemon-model/genai/testing', 'lemon-model/socket/testing'];
+const publicModuleNames = [
+    'lemon-model',
+    'lemon-model/genai/testing',
+    'lemon-model/buffer/testing',
+    'lemon-model/socket/testing',
+];
 
 /** Return runtime export names that should be shared between CommonJS and ESM. */
 const getPublicExportNames = loaded => {

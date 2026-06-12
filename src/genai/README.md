@@ -3,8 +3,7 @@
 `src/genai` manages an adapter that uses the HTTP-based agents API through a Gemini-compatible `ai.models.generateContent()` surface.
 
 It is provided by the `lemon-model` package so frontend code (browser/Vite) and backend code (Node) can share the same types and behavior.
-The source came from the GenAI shim that `eureka-codes-api-1` used to inject into frontend code through `doPostRefactor`,
-and from `eureka-agents-api / src/lib/proxy`. Both sides now import and use this module.
+The source came from a frontend GenAI shim and a backend proxy module. Both sides now import and use this shared module.
 
 ```ts
 // Common CJS backend / frontend bundler import.

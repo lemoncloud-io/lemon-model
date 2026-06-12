@@ -1,0 +1,113 @@
+{
+  "request": {
+    "model": "gemini-2.5-flash",
+    "contents": "Return two colors.",
+    "config": {
+      "responseMimeType": "application/json",
+      "responseSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "value"
+          ]
+        }
+      }
+    }
+  },
+  "response": [
+    {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "[{\"name\":\"red\","
+              }
+            ],
+            "role": "model"
+          },
+          "index": 0
+        }
+      ],
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "mock-stream-json",
+      "usageMetadata": {
+        "promptTokenCount": 12,
+        "candidatesTokenCount": 4,
+        "totalTokenCount": 16
+      }
+    },
+    {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "\"value\":\"#ff0000\"},{\"name\":\"blue\",\"value\":\"#0000ff\"}]"
+              }
+            ],
+            "role": "model"
+          },
+          "finishReason": "STOP",
+          "index": 0
+        }
+      ],
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "mock-stream-json",
+      "usageMetadata": {
+        "promptTokenCount": 12,
+        "candidatesTokenCount": 14,
+        "totalTokenCount": 26
+      }
+    }
+  ],
+  "summary": [
+    {
+      "index": 0,
+      "text": "[{\"name\":\"red\",",
+      "candidateCount": 1,
+      "parts": [
+        {
+          "hasText": true,
+          "textLength": 15
+        }
+      ],
+      "usageMetadata": {
+        "promptTokenCount": 12,
+        "candidatesTokenCount": 4,
+        "totalTokenCount": 16
+      },
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "mock-stream-json"
+    },
+    {
+      "index": 1,
+      "text": "\"value\":\"#ff0000\"},{\"name\":\"blue\",\"value\":\"#0000ff\"}]",
+      "candidateCount": 1,
+      "finishReason": "STOP",
+      "parts": [
+        {
+          "hasText": true,
+          "textLength": 58
+        }
+      ],
+      "usageMetadata": {
+        "promptTokenCount": 12,
+        "candidatesTokenCount": 14,
+        "totalTokenCount": 26
+      },
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "mock-stream-json"
+    }
+  ]
+}

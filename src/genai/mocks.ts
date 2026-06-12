@@ -3,7 +3,7 @@
  * - Test helpers for exercising `HttpAbstractGenAI` without a live agents API.
  * - `createAgentGenerateFetcher()` routes fetch calls into a controller-like object, and
  *   `MockAgentGenerateController` emulates the `/agents/!/generate` `/dump` + transport contract
- *   that `eureka-agents-api`'s `AgentAPIController.doPostGenerate()` provides.
+ *   provided by the upstream agent generate controller.
  *
  * @origin eureka-agents-api / src/lib/proxy/mocks.ts (+ `/dump` contract distilled from `AgentAPIController` for F/B-neutral tests)
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.

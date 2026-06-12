@@ -1,0 +1,115 @@
+request:
+  model: gemini-2.5-flash
+  contents: Return 3 colors
+  config:
+    responseMimeType: application/json
+    responseSchema:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          value:
+            type: string
+        required:
+          - name
+          - value
+response:
+  - candidates:
+      - content:
+          parts:
+            - text: '[{"'
+          role: model
+        index: 0
+    modelVersion: gemini-2.5-flash
+    responseId: vN4earycKuu30-kPl9fWiAU
+    usageMetadata:
+      promptTokenCount: 5
+      candidatesTokenCount: 2
+      totalTokenCount: 115
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 5
+      thoughtsTokenCount: 108
+      serviceTier: standard
+    sdkHttpResponse:
+      headers:
+        alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+        content-disposition: attachment
+        content-type: text/event-stream
+        date: Tue, 02 Jun 2026 13:46:38 GMT
+        server: scaffolding on HTTPServer2
+        server-timing: gfet4t7; dur=1606
+        transfer-encoding: chunked
+        vary: Origin, X-Origin, Referer
+        x-content-type-options: nosniff
+        x-frame-options: SAMEORIGIN
+        x-xss-protection: '0'
+  - candidates:
+      - content:
+          parts:
+            - text: name":"red","value":"#FF0000"},{"name":"green","value":"#00FF00"},{"name":"blue","value":"#0000FF"}]
+          role: model
+        finishReason: STOP
+        index: 0
+    modelVersion: gemini-2.5-flash
+    responseId: vN4earycKuu30-kPl9fWiAU
+    usageMetadata:
+      promptTokenCount: 5
+      candidatesTokenCount: 42
+      totalTokenCount: 155
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 5
+      thoughtsTokenCount: 108
+      serviceTier: standard
+    sdkHttpResponse:
+      headers:
+        alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+        content-disposition: attachment
+        content-type: text/event-stream
+        date: Tue, 02 Jun 2026 13:46:38 GMT
+        server: scaffolding on HTTPServer2
+        server-timing: gfet4t7; dur=1606
+        transfer-encoding: chunked
+        vary: Origin, X-Origin, Referer
+        x-content-type-options: nosniff
+        x-frame-options: SAMEORIGIN
+        x-xss-protection: '0'
+summary:
+  - index: 0
+    text: '[{"'
+    candidateCount: 1
+    parts:
+      - hasText: true
+        textLength: 3
+    usageMetadata:
+      promptTokenCount: 5
+      candidatesTokenCount: 2
+      totalTokenCount: 115
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 5
+      thoughtsTokenCount: 108
+      serviceTier: standard
+    modelVersion: gemini-2.5-flash
+    responseId: vN4earycKuu30-kPl9fWiAU
+  - index: 1
+    text: name":"red","value":"#FF0000"},{"name":"green","value":"#00FF00"},{"name":"blue","value":"#0000FF"}]
+    candidateCount: 1
+    finishReason: STOP
+    parts:
+      - hasText: true
+        textLength: 100
+    usageMetadata:
+      promptTokenCount: 5
+      candidatesTokenCount: 42
+      totalTokenCount: 155
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 5
+      thoughtsTokenCount: 108
+      serviceTier: standard
+    modelVersion: gemini-2.5-flash
+    responseId: vN4earycKuu30-kPl9fWiAU

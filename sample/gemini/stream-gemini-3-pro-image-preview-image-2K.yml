@@ -1,0 +1,185 @@
+probe:
+  mode: manager
+  includeThoughtSignature: false
+  timing:
+    startedAt: 1781186054788
+    startedAtIso: '2026-06-11T13:54:14.788Z'
+    elapsedMs: 26092
+request:
+  model: gemini-3-pro-image-preview
+  contents: A red cube
+  config:
+    responseModalities:
+      - IMAGE
+    imageConfig:
+      imageSize: 2K
+direct:
+  skipped: true
+  method: GoogleGenAI.models.generateContentStream
+  responseCount: 0
+  bufferEventCount: 0
+response: []
+summary: []
+image:
+  images: []
+  count: 0
+  hashes: []
+buffer:
+  skipped: true
+  options:
+    flushStrategy: hybrid
+    bufferSize: 2
+    bufferBytes: 16384
+    maxWaitMs: 300
+    bufferMs: 300
+    emitProgress: true
+    meta:
+      provider: gemini
+      kind: image
+      estimate:
+        totalBytes: 2700000
+        estimated: true
+        source: imageSize
+        confidence: 0.25
+      model: gemini-3-pro-image-preview
+  response: []
+  summary: []
+  snapshot:
+    pendingChunks: 0
+    pendingChars: 0
+    pendingBytes: 0
+    loadedChars: 0
+    loadedBytes: 0
+    closed: false
+    progress:
+      loadedChars: 0
+      loadedBytes: 0
+      totalBytes: 2700000
+      percent: 0
+      estimated: true
+managerCheck:
+  method: GeminiManager.consumeGenerate2Stream
+  timing:
+    primitiveGenElapsedMs: 24493
+    streamCreateElapsedMs: 24493
+    consumeElapsedMs: 1588
+    startedAt: 1781186079282
+    startedAtIso: '2026-06-11T13:54:39.282Z'
+  response:
+    text: ''
+    usageMetadata:
+      promptTokenCount: 4
+      candidatesTokenCount: 1206
+      totalTokenCount: 1346
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 4
+      candidatesTokensDetails:
+        - modality: IMAGE
+          tokenCount: 1120
+      thoughtsTokenCount: 136
+      serviceTier: standard
+  events:
+    - type: start
+      index: 0
+      createdAt: 1781186079282
+      meta:
+        provider: gemini
+        model: gemini-3-pro-image-preview
+        kind: image
+    - type: flush
+      index: 2
+      createdAt: 1781186080864
+      meta:
+        provider: gemini
+        model: gemini-3-pro-image-preview
+        kind: image
+      count: 1
+      chars: 4741191
+      bytes: 4741191
+      progress:
+        loadedChars: 4741191
+        loadedBytes: 4741191
+        estimated: true
+      data:
+        omitted: true
+        artifact:
+          file: sample/image/eb84bd5b8f8f1e7fec128a683f9d16a00692b68dbed6231fdfad09460bf57d41.jpg
+          hash: eb84bd5b8f8f1e7fec128a683f9d16a00692b68dbed6231fdfad09460bf57d41
+          mimeType: image/jpeg
+          bytes: 3555875
+          base64Length: 4741168
+          dataUrlLength: 4741191
+      chunks:
+        - type: chunk
+          meta:
+            provider: gemini
+            model: gemini-3-pro-image-preview
+            kind: image
+          index: 1
+          createdAt: 1781186080863
+          chars: 4741191
+          bytes: 4741191
+          progress:
+            loadedChars: 4741191
+            loadedBytes: 4741191
+            estimated: true
+          data:
+            omitted: true
+            artifact:
+              file: sample/image/eb84bd5b8f8f1e7fec128a683f9d16a00692b68dbed6231fdfad09460bf57d41.jpg
+              hash: eb84bd5b8f8f1e7fec128a683f9d16a00692b68dbed6231fdfad09460bf57d41
+              mimeType: image/jpeg
+              bytes: 3555875
+              base64Length: 4741168
+              dataUrlLength: 4741191
+    - type: eof
+      index: 3
+      createdAt: 1781186080870
+      meta:
+        provider: gemini
+        model: gemini-3-pro-image-preview
+        kind: image
+      progress:
+        loadedChars: 4741191
+        loadedBytes: 4741191
+        percent: 100
+        estimated: true
+  summary:
+    - index: 0
+      type: start
+      eventIndex: 0
+      elapsedMs: 0
+      meta:
+        provider: gemini
+        model: gemini-3-pro-image-preview
+        kind: image
+    - index: 1
+      type: flush
+      eventIndex: 2
+      elapsedMs: 1582
+      dataLength: 4741191
+      count: 1
+      chars: 4741191
+      bytes: 4741191
+      progress:
+        loadedChars: 4741191
+        loadedBytes: 4741191
+        estimated: true
+      meta:
+        provider: gemini
+        model: gemini-3-pro-image-preview
+        kind: image
+    - index: 2
+      type: eof
+      eventIndex: 3
+      elapsedMs: 1588
+      progress:
+        loadedChars: 4741191
+        loadedBytes: 4741191
+        percent: 100
+        estimated: true
+      meta:
+        provider: gemini
+        model: gemini-3-pro-image-preview
+        kind: image

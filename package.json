@@ -18,6 +18,12 @@
       "require": "./dist/genai/testing.js",
       "default": "./dist/genai/testing.js"
     },
+    "./buffer/testing": {
+      "types": "./dist/buffer/testing.d.ts",
+      "import": "./dist/esm/buffer/testing.js",
+      "require": "./dist/buffer/testing.js",
+      "default": "./dist/buffer/testing.js"
+    },
     "./socket/testing": {
       "types": "./dist/socket/testing.d.ts",
       "import": "./dist/esm/socket/testing.js",

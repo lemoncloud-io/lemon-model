@@ -1,0 +1,69 @@
+request:
+  model: gpt-5-mini
+  input:
+    - role: user
+      content: Generate a simple red cube on a white background.
+  tools:
+    - type: image_generation
+      model: gpt-image-1
+      output_format: png
+      partial_images: 1
+  tool_choice:
+    type: image_generation
+  stream: true
+response:
+  - type: response.created
+    sequence_number: 0
+    response:
+      id: resp_mock_image
+      object: response
+      created_at: 1767968906
+      status: in_progress
+      model: gpt-5-mini
+      output: []
+  - type: response.image_generation_call.in_progress
+    sequence_number: 1
+    output_index: 0
+    item_id: ig_mock
+  - type: response.image_generation_call.partial_image
+    sequence_number: 2
+    output_index: 0
+    item_id: ig_mock
+    partial_image_index: 0
+    partial_image_b64: iVBORw0KGgo=
+  - type: response.image_generation_call.completed
+    sequence_number: 3
+    output_index: 0
+    item_id: ig_mock
+  - type: response.completed
+    sequence_number: 4
+    response:
+      id: resp_mock_image
+      object: response
+      created_at: 1767968906
+      status: completed
+      model: gpt-5-mini
+      output:
+        - id: ig_mock
+          type: image_generation_call
+          status: completed
+          result: iVBORw0KGgo=
+      usage:
+        input_tokens: 30
+        output_tokens: 120
+        total_tokens: 150
+finalResponse:
+  id: resp_mock_image
+  object: response
+  created_at: 1767968906
+  status: completed
+  model: gpt-5-mini
+  output:
+    - id: ig_mock
+      type: image_generation_call
+      status: completed
+      result: iVBORw0KGgo=
+  usage:
+    input_tokens: 30
+    output_tokens: 120
+    total_tokens: 150

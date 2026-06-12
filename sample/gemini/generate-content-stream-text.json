@@ -1,0 +1,92 @@
+{
+  "request": {
+    "model": "gemini-2.5-flash",
+    "contents": "Say hello in two short sentences."
+  },
+  "response": [
+    {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "Hello from "
+              }
+            ],
+            "role": "model"
+          },
+          "index": 0
+        }
+      ],
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "mock-stream-text",
+      "usageMetadata": {
+        "promptTokenCount": 8,
+        "candidatesTokenCount": 2,
+        "totalTokenCount": 10
+      }
+    },
+    {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "Gemini stream."
+              }
+            ],
+            "role": "model"
+          },
+          "finishReason": "STOP",
+          "index": 0
+        }
+      ],
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "mock-stream-text",
+      "usageMetadata": {
+        "promptTokenCount": 8,
+        "candidatesTokenCount": 5,
+        "totalTokenCount": 13
+      }
+    }
+  ],
+  "summary": [
+    {
+      "index": 0,
+      "text": "Hello from ",
+      "candidateCount": 1,
+      "parts": [
+        {
+          "hasText": true,
+          "textLength": 11
+        }
+      ],
+      "usageMetadata": {
+        "promptTokenCount": 8,
+        "candidatesTokenCount": 2,
+        "totalTokenCount": 10
+      },
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "mock-stream-text"
+    },
+    {
+      "index": 1,
+      "text": "Gemini stream.",
+      "candidateCount": 1,
+      "finishReason": "STOP",
+      "parts": [
+        {
+          "hasText": true,
+          "textLength": 14
+        }
+      ],
+      "usageMetadata": {
+        "promptTokenCount": 8,
+        "candidatesTokenCount": 5,
+        "totalTokenCount": 13
+      },
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "mock-stream-text"
+    }
+  ]
+}
