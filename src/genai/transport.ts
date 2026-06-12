@@ -7,14 +7,8 @@
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */
 import { createJSONTransport, JSONTransportOptions, JSONTransportPacket } from '../socket/transport';
-import {
-    NetworkMessageHandler,
-    NetworkSupportable,
-    SocketErrorHandler,
-    SocketNetworkOptions,
-    SocketReadyState,
-    SocketUnsubscribe,
-} from '../socket/types';
+import { NetworkSupportable } from '../socket/types';
+import { createFilteredNetwork } from '../socket/websocket';
 import { ProxyTransportReceiver } from './types';
 
 /** options for receiving a single JSONTransport response */
@@ -40,7 +34,10 @@ export class JSONProxyTransportReceiver<T extends object = object> implements Pr
         private readonly network: NetworkSupportable,
         private readonly options: ProxyTransportReceiverOptions<T> = {},
     ) {
-        this.transport = createJSONTransport<T>(new TransportPacketNetwork(network), options.jsonTransport);
+        this.transport = createJSONTransport<T>(
+            createFilteredNetwork(network, isTransportPacketString),
+            options.jsonTransport,
+        );
         this.transport.onMessage(data => this.resolve(data));
         this.transport.onError(error => this.reject(error));
     }
@@ -104,42 +101,7 @@ export const createProxyTransportReceiver = <T extends object = object>(
     options?: ProxyTransportReceiverOptions<T>,
 ): JSONProxyTransportReceiver<T> => new JSONProxyTransportReceiver<T>(network, options);
 
-/** network wrapper that lets JSONTransport see only transport packet strings */
-class TransportPacketNetwork implements NetworkSupportable {
-    public constructor(private readonly source: NetworkSupportable) {}
-
-    public get readyState(): SocketReadyState {
-        return this.source.readyState;
-    }
-
-    public ready(): Promise<void> {
-        return this.source.ready?.() ?? Promise.resolve();
-    }
-
-    public send(data: string): void {
-        this.source.send(data);
-    }
-
-    public onMessage(handler: NetworkMessageHandler): SocketUnsubscribe {
-        return this.source.onMessage(data => {
-            if (!isTransportPacketString(data)) return;
-            handler(data);
-        });
-    }
-
-    public configure(options: SocketNetworkOptions): void {
-        this.source.configure?.(options);
-    }
-
-    public onError(handler: SocketErrorHandler): SocketUnsubscribe {
-        return this.source.onError(handler);
-    }
-
-    public close(): void {
-        this.source.close();
-    }
-}
-
+/** raw predicate: keep only JSONTransport frame strings */
 const isTransportPacketString = (data: string): boolean => {
     try {
         const packet = JSON.parse(data) as Partial<JSONTransportPacket>;
