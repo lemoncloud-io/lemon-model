@@ -265,6 +265,224 @@ export class BrowserWebSocketNetwork implements NetworkSupportable {
     }
 }
 
+/** WebSocket-compatible contract that also exposes an actual `close()`. */
+export interface WebSocketClosable extends WebSocketCompartible {
+    close(code?: number, reason?: string): void;
+}
+
+/** context passed to a custom `socketFactory` when an owned WebSocket is created */
+export interface OwnedWebSocketNetworkFactoryContext {
+    url: string;
+    protocols?: string | string[];
+}
+
+/** options for an owned WebSocket network adapter */
+export interface OwnedWebSocketNetworkOptions {
+    /** target WebSocket url */
+    url: string;
+    /** optional subprotocol(s) */
+    protocols?: string | string[];
+    /** custom WebSocket creation (defaults to the global `WebSocket`) */
+    socketFactory?: (context: OwnedWebSocketNetworkFactoryContext) => WebSocketClosable;
+    /** timeout for the initial open; on timeout the socket is actual-closed (default 15s) */
+    connectTimeoutMs?: number;
+}
+
+/**
+ * Adapter that owns the WebSocket it creates.
+ *
+ * Unlike `BrowserWebSocketNetwork`, `close()` performs an actual socket close. The adapter only
+ * handles raw string send/receive, connect timeout, and event mapping; it knows nothing about
+ * message parsing, pending settlement, or routing.
+ */
+export class OwnedWebSocketNetwork implements NetworkSupportable {
+    private readonly ws: WebSocketClosable;
+    private readonly messageHandlers = new Set<NetworkMessageHandler>();
+    private readonly errorHandlers = new Set<SocketErrorHandler>();
+    private readonly opened: Promise<void>;
+    private closed = false;
+
+    private readonly handleMessage = (event: WebSocketCompartibleEventMap['message']) => {
+        if (this.closed || typeof event.data !== 'string') return;
+        for (const handler of [...this.messageHandlers]) handler(event.data);
+    };
+    private readonly handleError = (event: WebSocketCompartibleEventMap['error']) => {
+        if (this.closed) return;
+        for (const handler of [...this.errorHandlers]) handler(event, { scope: 'ownedWebSocket', network: this });
+    };
+    private readonly handleClose = (event: WebSocketCompartibleEventMap['close']) => {
+        if (this.closed) return;
+        for (const handler of [...this.errorHandlers]) handler(event, { scope: 'ownedWebSocket.close', network: this });
+    };
+
+    public constructor(options: OwnedWebSocketNetworkOptions) {
+        this.ws = options.socketFactory
+            ? options.socketFactory({ url: options.url, protocols: options.protocols })
+            : createDefaultWebSocket(options);
+        this.opened = this.buildOpened(options.connectTimeoutMs ?? 15_000);
+        this.ws.addEventListener('message', this.handleMessage);
+        this.ws.addEventListener('error', this.handleError);
+        this.ws.addEventListener('close', this.handleClose);
+    }
+
+    public get readyState(): SocketReadyState {
+        if (this.closed) return 'closed';
+        if (this.isOpen()) return 'open';
+        if (this.ws.readyState === stateValue(this.ws, 'CLOSING', 2)) return 'closing';
+        if (this.ws.readyState === stateValue(this.ws, 'CLOSED', 3)) return 'closed';
+        return 'connecting';
+    }
+
+    public ready(): Promise<void> {
+        if (this.closed) return Promise.reject(new Error(`@network connection error: closed - ownedWebSocket.ready`));
+        return this.opened;
+    }
+
+    public send(data: string): void {
+        if (this.closed || !this.isOpen()) {
+            throw new Error(`@network connection error: ${this.readyState} - ownedWebSocket.send`);
+        }
+        this.ws.send(data);
+    }
+
+    public onMessage(handler: NetworkMessageHandler): SocketUnsubscribe {
+        if (this.closed) throw new Error(`@network connection error: closed - ownedWebSocket.onMessage`);
+        this.messageHandlers.add(handler);
+        return () => this.messageHandlers.delete(handler);
+    }
+
+    public configure(_options: SocketNetworkOptions): void {
+        // Owned WebSocket transport options are controlled by the runtime.
+    }
+
+    public onError(handler: SocketErrorHandler): SocketUnsubscribe {
+        this.errorHandlers.add(handler);
+        return () => this.errorHandlers.delete(handler);
+    }
+
+    public close(): void {
+        if (this.closed) return;
+        this.closed = true;
+        this.messageHandlers.clear();
+        this.errorHandlers.clear();
+        this.ws.removeEventListener('message', this.handleMessage);
+        this.ws.removeEventListener('error', this.handleError);
+        this.ws.removeEventListener('close', this.handleClose);
+        try {
+            this.ws.close();
+        } catch {
+            // ignore close errors; the adapter is already detached
+        }
+    }
+
+    private buildOpened(timeoutMs: number): Promise<void> {
+        if (this.isOpen()) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+            let settled = false;
+            const timer =
+                timeoutMs > 0
+                    ? setTimeout(() => {
+                          rejectOnce(new Error(`timeout waiting for WebSocket open: ${timeoutMs}ms`));
+                          this.close();
+                      }, timeoutMs)
+                    : undefined;
+            const cleanup = () => {
+                if (timer) clearTimeout(timer);
+                this.ws.removeEventListener('open', onOpen);
+                this.ws.removeEventListener('error', onError);
+                this.ws.removeEventListener('close', onClose);
+            };
+            const resolveOnce = () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                resolve();
+            };
+            const rejectOnce = (error: any) => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(error);
+            };
+            const onOpen = () => resolveOnce();
+            const onError = (event: WebSocketCompartibleEventMap['error']) => rejectOnce(event);
+            const onClose = () => rejectOnce(new Error(`WebSocket closed before open`));
+            this.ws.addEventListener('open', onOpen, { once: true });
+            this.ws.addEventListener('error', onError, { once: true });
+            this.ws.addEventListener('close', onClose, { once: true });
+        });
+    }
+
+    private isOpen(): boolean {
+        return this.ws.readyState === stateValue(this.ws, 'OPEN', 1);
+    }
+}
+
+/** create an owned WebSocket network adapter */
+export const createOwnedWebSocketNetwork = (options: OwnedWebSocketNetworkOptions): OwnedWebSocketNetwork =>
+    new OwnedWebSocketNetwork(options);
+
+/** predicate that decides whether a raw inbound string belongs to this runtime */
+export type RawOwnershipPredicate = (raw: string) => boolean;
+
+/**
+ * Wrap a `NetworkSupportable` so subscribers only see inbound raw strings accepted by `shouldHandleRaw`.
+ *
+ * Both chatic and proxy share this single boundary mechanism. The predicate only filters inbound
+ * `onMessage`; outbound `send` and every other member delegate to the source unchanged.
+ */
+export const createFilteredNetwork = (
+    source: NetworkSupportable,
+    shouldHandleRaw: RawOwnershipPredicate,
+): NetworkSupportable => new FilteredNetwork(source, shouldHandleRaw);
+
+/** `NetworkSupportable` decorator that filters inbound raw strings by ownership predicate */
+class FilteredNetwork implements NetworkSupportable {
+    public constructor(
+        private readonly source: NetworkSupportable,
+        private readonly shouldHandleRaw: RawOwnershipPredicate,
+    ) {}
+
+    public get readyState(): SocketReadyState {
+        return this.source.readyState;
+    }
+
+    public ready(): Promise<void> {
+        return this.source.ready?.() ?? Promise.resolve();
+    }
+
+    public send(data: string): void {
+        this.source.send(data);
+    }
+
+    public onMessage(handler: NetworkMessageHandler): SocketUnsubscribe {
+        return this.source.onMessage(raw => {
+            if (!this.shouldHandleRaw(raw)) return;
+            handler(raw);
+        });
+    }
+
+    public configure(options: SocketNetworkOptions): void {
+        this.source.configure?.(options);
+    }
+
+    public onError(handler: SocketErrorHandler): SocketUnsubscribe {
+        return this.source.onError(handler);
+    }
+
+    public close(): void {
+        this.source.close();
+    }
+}
+
+const createDefaultWebSocket = (options: OwnedWebSocketNetworkOptions): WebSocketClosable => {
+    const WS = (globalThis as any).WebSocket;
+    if (typeof WS !== 'function') {
+        throw new Error(`global WebSocket is not available; provide options.socketFactory`);
+    }
+    return new WS(options.url, options.protocols);
+};
+
 const waitWebSocketOpen = (ws: WebSocketCompartible, timeoutMs: number): Promise<void> => {
     if (ws.readyState === stateValue(ws, 'OPEN', 1)) return Promise.resolve();
     return new Promise((resolve, reject) => {
