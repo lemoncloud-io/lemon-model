@@ -59,9 +59,9 @@ export interface NetworkMessageHandler {
 export interface NetworkSupportable {
     /** network state */
     readonly readyState: SocketReadyState;
-    /** wait until this network is ready for send/onMessage usage */
+    /** resolve when ready for send/onMessage; immediately if already open, reject if closed */
     ready?(): Promise<void>;
-    /** subscribe to the synchronous open event (decorators must delegate to preserve composition) */
+    /** subscribe to the open transition; fires once, immediately if already open. decorators must delegate */
     onOpen?(handler: () => void): SocketUnsubscribe;
     /** send raw string data over the network */
     send(data: string): void;

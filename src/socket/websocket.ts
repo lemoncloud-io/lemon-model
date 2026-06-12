@@ -302,10 +302,13 @@ export class OwnedWebSocketNetwork implements NetworkSupportable {
     private readonly errorHandlers = new Set<SocketErrorHandler>();
     private readonly opened: Promise<void>;
     private closed = false;
+    private hasOpened = false;
 
     private readonly handleOpen = () => {
-        if (this.closed) return;
+        if (this.closed || this.hasOpened) return;
+        this.hasOpened = true;
         for (const handler of [...this.openHandlers]) handler();
+        this.openHandlers.clear();
     };
     private readonly handleMessage = (event: WebSocketCompartibleEventMap['message']) => {
         if (this.closed || typeof event.data !== 'string') return;
@@ -331,9 +334,13 @@ export class OwnedWebSocketNetwork implements NetworkSupportable {
         this.ws.addEventListener('close', this.handleClose);
     }
 
-    /** subscribe to the synchronous open event (in addition to the `ready()` promise) */
+    /** subscribe to the open transition; fires once, immediately if already open */
     public onOpen(handler: () => void): SocketUnsubscribe {
         if (this.closed) throw new Error(`@network connection error: closed - ownedWebSocket.onOpen`);
+        if (this.hasOpened || this.isOpen()) {
+            handler();
+            return () => undefined;
+        }
         this.openHandlers.add(handler);
         return () => this.openHandlers.delete(handler);
     }
