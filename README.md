@@ -32,6 +32,7 @@ Frontend bundlers use the ESM build. Existing Node `require()` consumers use the
 | `types` | Shared request, identity, storage, and service shapes | Source types |
 | `cores` | Small shared transform helpers | Source tests |
 | `socket` | Peer socket, network contract, WebSocket bridge, JSON chunk transport | `src/socket/README.md` |
+| `buffer` | Provider-neutral GenAI stream buffering and network adapters | `src/buffer/README.md` |
 | `genai` | Gemini-like `generateContent()` adapter over Lemon agents APIs | `src/genai/README.md` |
 | `samples` | Real usage cases and PR-ready sample notes | `samples/README.md` |
 
@@ -68,12 +69,28 @@ flowchart TD
     B -- Yes --> D{Which behavior}
     D -- Data transforms --> E[Use cores]
     D -- Socket or network test --> F[Use socket]
+    D -- GenAI stream batching --> J[Use buffer]
     D -- Agents generateContent --> G[Use genai]
     F --> H[Read src/socket/README.md]
     G --> I[Read src/genai/README.md]
+    J --> K[Read src/buffer/README.md]
 ```
 
-Main branch: type-only, transform helper, socket flow, or GenAI proxy.
+Main branch: type-only, transform helper, socket flow, GenAI stream buffer, or GenAI proxy.
+
+## Buffer
+
+`buffer` provides provider-neutral stream primitives for GenAI responses.
+
+```ts
+import { GenAIStreamBuffer, createGenAIStreamNetworkConsumer } from 'lemon-model';
+```
+
+Use it when a provider emits small stream fragments and the app needs consistent `start`, `chunk`, `progress`, `flush`, `eof`, and `error` events.
+
+The network adapter can send `GenAIStreamEvent` over the shared socket/json-transport layer. Diagnostic helpers live under `lemon-model/buffer/testing`.
+
+Provider probe tools are available under `tools/`, but provider SDKs are not part of the runtime package contract. Install the matching SDK in the workspace where you run a probe.
 
 ## Build Formats
 
@@ -81,12 +98,13 @@ Main branch: type-only, transform helper, socket flow, or GenAI proxy.
 - ESM entry: `dist/esm/index.js`
 - Type declarations: `dist/index.d.ts`
 - Package export: `import { ... } from 'lemon-model'`
-- Test helper exports: `lemon-model/genai/testing`, `lemon-model/socket/testing`
+- Test helper exports: `lemon-model/genai/testing`, `lemon-model/buffer/testing`, `lemon-model/socket/testing`
 
 ## Module Docs
 
 - `src/socket/README.md`: peer socket and network contract
 - `src/socket/JSON_TRANSPORT_SPEC.md`: JSON chunk transport protocol
+- `src/buffer/README.md`: GenAI stream buffering and network adapter contract
 - `src/genai/README.md`: GenAI adapter contract
 - `samples/README.md`: sample case rules
 
