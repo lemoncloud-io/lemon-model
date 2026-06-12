@@ -43,6 +43,7 @@ type OpenAIConstructor = new (options: { apiKey: string }) => any;
 
 const loadOpenAI = (): OpenAIConstructor => {
     try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const loaded = require('openai');
         return loaded.default ?? loaded;
     } catch {

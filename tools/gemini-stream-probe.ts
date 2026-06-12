@@ -41,6 +41,7 @@ type ProbeMode = 'direct' | 'manager' | 'both';
 
 const loadGoogleGenAI = (): { GoogleGenAI: new (options: { apiKey: string }) => any } => {
     try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const loaded = require('@google/genai');
         return { GoogleGenAI: loaded.GoogleGenAI };
     } catch {

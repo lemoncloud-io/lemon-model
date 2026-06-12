@@ -15,12 +15,7 @@ import {
     JSONTransportSupportable,
 } from '../socket/transport';
 import { NetworkSupportable, SocketErrorHandler, SocketUnsubscribe } from '../socket/types';
-import {
-    GenAIStreamChunkEvent,
-    GenAIStreamConsumer,
-    GenAIStreamEvent,
-    GenAIStreamFlushEvent,
-} from './stream';
+import { GenAIStreamChunkEvent, GenAIStreamConsumer, GenAIStreamEvent, GenAIStreamFlushEvent } from './stream';
 
 export interface GenAIStreamNetworkPacket {
     /** packet discriminator used after JSONTransport reassembly */
@@ -73,12 +68,7 @@ export interface GenAIStreamNetworkReceiver {
 }
 
 // eslint-disable-next-line prettier/prettier
-const STREAM_EVENT_SPLIT_PATHS = [
-    '/event/data',
-    '/event/chunks/*/data',
-    '/event/error/message',
-    '/event/error/stack',
-];
+const STREAM_EVENT_SPLIT_PATHS = ['/event/data', '/event/chunks/*/data', '/event/error/message', '/event/error/stack'];
 
 export const asGenAIStreamNetworkTransportOptions = (
     options?: GenAIStreamNetworkOptions,
@@ -94,10 +84,7 @@ export const asGenAIStreamNetworkTransportOptions = (
         ...jsonTransport,
         chunkBytes,
         // eslint-disable-next-line prettier/prettier
-        preferredSplitPaths: [
-            ...STREAM_EVENT_SPLIT_PATHS,
-            ...(jsonTransport.preferredSplitPaths ?? []),
-        ],
+        preferredSplitPaths: [...STREAM_EVENT_SPLIT_PATHS, ...(jsonTransport.preferredSplitPaths ?? [])],
     };
 };
 
