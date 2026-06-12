@@ -1,0 +1,409 @@
+probe:
+  mode: direct
+  includeThoughtSignature: false
+  timing:
+    startedAt: 1781247444718
+    startedAtIso: '2026-06-12T06:57:24.718Z'
+    elapsedMs: 2124
+request:
+  model: gemini-2.5-flash
+  contents: Return 3 color names and hex values.
+  config:
+    responseMimeType: application/json
+    responseSchema:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          value:
+            type: string
+        required:
+          - name
+          - value
+direct:
+  skipped: false
+  method: GoogleGenAI.models.generateContentStream
+  timing:
+    streamCreateElapsedMs: 2111
+    consumeElapsedMs: 8
+    startedAt: 1781247446834
+    startedAtIso: '2026-06-12T06:57:26.834Z'
+  responseCount: 2
+  bufferEventCount: 5
+response:
+  - candidates:
+      - content:
+          parts:
+            - text: '[{"'
+          role: model
+        index: 0
+    modelVersion: gemini-2.5-flash
+    responseId: 1a0ratB7upnV7w-Am8Ax
+    usageMetadata:
+      promptTokenCount: 10
+      candidatesTokenCount: 2
+      totalTokenCount: 116
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 10
+      thoughtsTokenCount: 104
+      serviceTier: standard
+    sdkHttpResponse:
+      headers:
+        alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+        content-disposition: attachment
+        content-type: text/event-stream
+        date: Fri, 12 Jun 2026 06:57:26 GMT
+        server: scaffolding on HTTPServer2
+        server-timing: gfet4t7; dur=1775
+        transfer-encoding: chunked
+        vary: Origin, X-Origin, Referer
+        x-content-type-options: nosniff
+        x-frame-options: SAMEORIGIN
+        x-xss-protection: '0'
+  - candidates:
+      - content:
+          parts:
+            - text: name":"Red","value":"#FF0000"},{"name":"Green","value":"#00FF00"},{"name":"Blue","value":"#0000FF"}]
+          role: model
+        finishReason: STOP
+        index: 0
+    modelVersion: gemini-2.5-flash
+    responseId: 1a0ratB7upnV7w-Am8Ax
+    usageMetadata:
+      promptTokenCount: 10
+      candidatesTokenCount: 42
+      totalTokenCount: 156
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 10
+      thoughtsTokenCount: 104
+      serviceTier: standard
+    sdkHttpResponse:
+      headers:
+        alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+        content-disposition: attachment
+        content-type: text/event-stream
+        date: Fri, 12 Jun 2026 06:57:26 GMT
+        server: scaffolding on HTTPServer2
+        server-timing: gfet4t7; dur=1775
+        transfer-encoding: chunked
+        vary: Origin, X-Origin, Referer
+        x-content-type-options: nosniff
+        x-frame-options: SAMEORIGIN
+        x-xss-protection: '0'
+summary:
+  - index: 0
+    elapsedMs: 2
+    text: '[{"'
+    candidateCount: 1
+    parts:
+      - hasText: true
+        textLength: 3
+    usageMetadata:
+      promptTokenCount: 10
+      candidatesTokenCount: 2
+      totalTokenCount: 116
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 10
+      thoughtsTokenCount: 104
+      serviceTier: standard
+    modelVersion: gemini-2.5-flash
+    responseId: 1a0ratB7upnV7w-Am8Ax
+  - index: 1
+    elapsedMs: 3
+    text: name":"Red","value":"#FF0000"},{"name":"Green","value":"#00FF00"},{"name":"Blue","value":"#0000FF"}]
+    candidateCount: 1
+    finishReason: STOP
+    parts:
+      - hasText: true
+        textLength: 100
+    usageMetadata:
+      promptTokenCount: 10
+      candidatesTokenCount: 42
+      totalTokenCount: 156
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 10
+      thoughtsTokenCount: 104
+      serviceTier: standard
+    modelVersion: gemini-2.5-flash
+    responseId: 1a0ratB7upnV7w-Am8Ax
+buffer:
+  skipped: false
+  options:
+    flushStrategy: hybrid
+    bufferSize: 2
+    bufferBytes: 16384
+    maxWaitMs: 300
+    bufferMs: 300
+    emitProgress: true
+    meta:
+      provider: gemini
+      kind: json
+      model: gemini-2.5-flash
+  response:
+    - type: start
+      index: 0
+      createdAt: 1781247446834
+      meta:
+        provider: gemini
+        kind: json
+        model: gemini-2.5-flash
+    - type: progress
+      index: 2
+      createdAt: 1781247446837
+      meta:
+        provider: gemini
+        kind: json
+        model: gemini-2.5-flash
+      progress:
+        loadedChars: 3
+        loadedBytes: 3
+        bufferPercent: 50
+        source: chunk
+        pendingChunks: 1
+        pendingBytes: 3
+        pendingChars: 3
+        bufferElapsedMs: 1
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+    - type: progress
+      index: 4
+      createdAt: 1781247446837
+      meta:
+        provider: gemini
+        kind: json
+        model: gemini-2.5-flash
+      progress:
+        loadedChars: 103
+        loadedBytes: 103
+        bufferPercent: 99
+        source: chunk
+        pendingChunks: 2
+        pendingBytes: 103
+        pendingChars: 103
+        bufferElapsedMs: 1
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+    - type: flush
+      index: 5
+      createdAt: 1781247446838
+      meta:
+        provider: gemini
+        kind: json
+        model: gemini-2.5-flash
+      data: '[{"name":"Red","value":"#FF0000"},{"name":"Green","value":"#00FF00"},{"name":"Blue","value":"#0000FF"}]'
+      chunks:
+        - type: chunk
+          data: '[{"'
+          meta:
+            provider: gemini
+            kind: json
+            model: gemini-2.5-flash
+          index: 1
+          createdAt: 1781247446836
+          chars: 3
+          bytes: 3
+          progress:
+            loadedChars: 3
+            loadedBytes: 3
+            bufferPercent: 50
+            source: chunk
+            pendingChunks: 1
+            pendingBytes: 3
+            pendingChars: 3
+            bufferElapsedMs: 1
+            bufferTargetChunks: 2
+            bufferTargetBytes: 16384
+            bufferTargetMs: 300
+            estimated: true
+        - type: chunk
+          data: name":"Red","value":"#FF0000"},{"name":"Green","value":"#00FF00"},{"name":"Blue","value":"#0000FF"}]
+          meta:
+            provider: gemini
+            kind: json
+            model: gemini-2.5-flash
+          index: 3
+          createdAt: 1781247446837
+          chars: 100
+          bytes: 100
+          progress:
+            loadedChars: 103
+            loadedBytes: 103
+            bufferPercent: 99
+            source: chunk
+            pendingChunks: 2
+            pendingBytes: 103
+            pendingChars: 103
+            bufferElapsedMs: 1
+            bufferTargetChunks: 2
+            bufferTargetBytes: 16384
+            bufferTargetMs: 300
+            estimated: true
+      count: 2
+      chars: 103
+      bytes: 103
+      progress:
+        loadedChars: 103
+        loadedBytes: 103
+        bufferPercent: 100
+        source: flush
+        pendingChunks: 2
+        pendingBytes: 103
+        pendingChars: 103
+        bufferElapsedMs: 2
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+    - type: eof
+      index: 6
+      createdAt: 1781247446842
+      meta:
+        provider: gemini
+        kind: json
+        model: gemini-2.5-flash
+      progress:
+        loadedChars: 103
+        loadedBytes: 103
+        percent: 100
+        bufferPercent: 100
+        source: eof
+        pendingChunks: 0
+        pendingBytes: 0
+        pendingChars: 0
+        bufferElapsedMs: 0
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+  summary:
+    - index: 0
+      type: start
+      eventIndex: 0
+      elapsedMs: 0
+      meta:
+        provider: gemini
+        kind: json
+        model: gemini-2.5-flash
+    - index: 1
+      type: progress
+      eventIndex: 2
+      elapsedMs: 3
+      progress:
+        loadedChars: 3
+        loadedBytes: 3
+        bufferPercent: 50
+        source: chunk
+        pendingChunks: 1
+        pendingBytes: 3
+        pendingChars: 3
+        bufferElapsedMs: 1
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+      meta:
+        provider: gemini
+        kind: json
+        model: gemini-2.5-flash
+    - index: 2
+      type: progress
+      eventIndex: 4
+      elapsedMs: 3
+      progress:
+        loadedChars: 103
+        loadedBytes: 103
+        bufferPercent: 99
+        source: chunk
+        pendingChunks: 2
+        pendingBytes: 103
+        pendingChars: 103
+        bufferElapsedMs: 1
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+      meta:
+        provider: gemini
+        kind: json
+        model: gemini-2.5-flash
+    - index: 3
+      type: flush
+      eventIndex: 5
+      elapsedMs: 4
+      dataLength: 103
+      count: 2
+      chars: 103
+      bytes: 103
+      progress:
+        loadedChars: 103
+        loadedBytes: 103
+        bufferPercent: 100
+        source: flush
+        pendingChunks: 2
+        pendingBytes: 103
+        pendingChars: 103
+        bufferElapsedMs: 2
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+      meta:
+        provider: gemini
+        kind: json
+        model: gemini-2.5-flash
+    - index: 4
+      type: eof
+      eventIndex: 6
+      elapsedMs: 8
+      progress:
+        loadedChars: 103
+        loadedBytes: 103
+        percent: 100
+        bufferPercent: 100
+        source: eof
+        pendingChunks: 0
+        pendingBytes: 0
+        pendingChars: 0
+        bufferElapsedMs: 0
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+      meta:
+        provider: gemini
+        kind: json
+        model: gemini-2.5-flash
+  snapshot:
+    pendingChunks: 0
+    pendingChars: 0
+    pendingBytes: 0
+    loadedChars: 103
+    loadedBytes: 103
+    closed: true
+    progress:
+      loadedChars: 103
+      loadedBytes: 103
+      percent: 100
+      bufferPercent: 100
+      source: eof
+      pendingChunks: 0
+      pendingBytes: 0
+      pendingChars: 0
+      bufferElapsedMs: 0
+      bufferTargetChunks: 2
+      bufferTargetBytes: 16384
+      bufferTargetMs: 300
+      estimated: true
+managerCheck:
+  skipped: true
+  reason: Gemini manager check requires provider manager integration outside lemon-model.

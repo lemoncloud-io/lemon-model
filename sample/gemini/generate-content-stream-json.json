@@ -1,0 +1,177 @@
+{
+  "request": {
+    "model": "gemini-2.5-flash",
+    "contents": "Return 3 color names and hex values.",
+    "config": {
+      "responseMimeType": "application/json",
+      "responseSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "value"
+          ]
+        }
+      }
+    }
+  },
+  "response": [
+    {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "[{\""
+              }
+            ],
+            "role": "model"
+          },
+          "index": 0
+        }
+      ],
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "1a0ratB7upnV7w-Am8Ax",
+      "usageMetadata": {
+        "promptTokenCount": 10,
+        "candidatesTokenCount": 2,
+        "totalTokenCount": 116,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 10
+          }
+        ],
+        "thoughtsTokenCount": 104,
+        "serviceTier": "standard"
+      },
+      "sdkHttpResponse": {
+        "headers": {
+          "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+          "content-disposition": "attachment",
+          "content-type": "text/event-stream",
+          "date": "Fri, 12 Jun 2026 06:57:26 GMT",
+          "server": "scaffolding on HTTPServer2",
+          "server-timing": "gfet4t7; dur=1775",
+          "transfer-encoding": "chunked",
+          "vary": "Origin, X-Origin, Referer",
+          "x-content-type-options": "nosniff",
+          "x-frame-options": "SAMEORIGIN",
+          "x-xss-protection": "0"
+        }
+      }
+    },
+    {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "name\":\"Red\",\"value\":\"#FF0000\"},{\"name\":\"Green\",\"value\":\"#00FF00\"},{\"name\":\"Blue\",\"value\":\"#0000FF\"}]"
+              }
+            ],
+            "role": "model"
+          },
+          "finishReason": "STOP",
+          "index": 0
+        }
+      ],
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "1a0ratB7upnV7w-Am8Ax",
+      "usageMetadata": {
+        "promptTokenCount": 10,
+        "candidatesTokenCount": 42,
+        "totalTokenCount": 156,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 10
+          }
+        ],
+        "thoughtsTokenCount": 104,
+        "serviceTier": "standard"
+      },
+      "sdkHttpResponse": {
+        "headers": {
+          "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+          "content-disposition": "attachment",
+          "content-type": "text/event-stream",
+          "date": "Fri, 12 Jun 2026 06:57:26 GMT",
+          "server": "scaffolding on HTTPServer2",
+          "server-timing": "gfet4t7; dur=1775",
+          "transfer-encoding": "chunked",
+          "vary": "Origin, X-Origin, Referer",
+          "x-content-type-options": "nosniff",
+          "x-frame-options": "SAMEORIGIN",
+          "x-xss-protection": "0"
+        }
+      }
+    }
+  ],
+  "summary": [
+    {
+      "index": 0,
+      "elapsedMs": 2,
+      "text": "[{\"",
+      "candidateCount": 1,
+      "parts": [
+        {
+          "hasText": true,
+          "textLength": 3
+        }
+      ],
+      "usageMetadata": {
+        "promptTokenCount": 10,
+        "candidatesTokenCount": 2,
+        "totalTokenCount": 116,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 10
+          }
+        ],
+        "thoughtsTokenCount": 104,
+        "serviceTier": "standard"
+      },
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "1a0ratB7upnV7w-Am8Ax"
+    },
+    {
+      "index": 1,
+      "elapsedMs": 3,
+      "text": "name\":\"Red\",\"value\":\"#FF0000\"},{\"name\":\"Green\",\"value\":\"#00FF00\"},{\"name\":\"Blue\",\"value\":\"#0000FF\"}]",
+      "candidateCount": 1,
+      "finishReason": "STOP",
+      "parts": [
+        {
+          "hasText": true,
+          "textLength": 100
+        }
+      ],
+      "usageMetadata": {
+        "promptTokenCount": 10,
+        "candidatesTokenCount": 42,
+        "totalTokenCount": 156,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 10
+          }
+        ],
+        "thoughtsTokenCount": 104,
+        "serviceTier": "standard"
+      },
+      "modelVersion": "gemini-2.5-flash",
+      "responseId": "1a0ratB7upnV7w-Am8Ax"
+    }
+  ]
+}

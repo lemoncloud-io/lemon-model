@@ -1,0 +1,333 @@
+probe:
+  mode: direct
+  includeThoughtSignature: false
+  timing:
+    startedAt: 1781247488284
+    startedAtIso: '2026-06-12T06:58:08.284Z'
+    elapsedMs: 5504
+request:
+  model: gemini-2.5-flash-image
+  contents: A tiny red square centered on a white background.
+  config:
+    responseModalities:
+      - IMAGE
+direct:
+  skipped: false
+  method: GoogleGenAI.models.generateContentStream
+  timing:
+    streamCreateElapsedMs: 5259
+    consumeElapsedMs: 234
+    startedAt: 1781247493553
+    startedAtIso: '2026-06-12T06:58:13.553Z'
+  responseCount: 1
+  bufferEventCount: 4
+response:
+  - candidates:
+      - content:
+          parts:
+            - inlineData:
+                mimeType: image/png
+                artifact:
+                  file: sample/image/92ed36b7293cac78edeeac8f866bcd7d9589a7c72f900b8aef2527e70667e879.png
+                  hash: 92ed36b7293cac78edeeac8f866bcd7d9589a7c72f900b8aef2527e70667e879
+                  mimeType: image/png
+                  bytes: 414093
+                  base64Length: 552124
+                  dataUrlLength: 552146
+                candidateIndex: 0
+                partIndex: 0
+          role: model
+        finishReason: STOP
+        index: 0
+    modelVersion: gemini-2.5-flash-image
+    responseId: AK4raumwJpLt2roPqqm5-Ak
+    usageMetadata:
+      promptTokenCount: 11
+      candidatesTokenCount: 1290
+      totalTokenCount: 1301
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 11
+      candidatesTokensDetails:
+        - modality: IMAGE
+          tokenCount: 1290
+      serviceTier: standard
+    sdkHttpResponse:
+      headers:
+        alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+        content-disposition: attachment
+        content-type: text/event-stream
+        date: Fri, 12 Jun 2026 06:58:13 GMT
+        server: scaffolding on HTTPServer2
+        server-timing: gfet4t7; dur=5050
+        transfer-encoding: chunked
+        vary: Origin, X-Origin, Referer
+        x-content-type-options: nosniff
+        x-frame-options: SAMEORIGIN
+        x-xss-protection: '0'
+summary:
+  - index: 0
+    elapsedMs: 228
+    candidateCount: 1
+    finishReason: STOP
+    parts:
+      - hasText: false
+        inlineMimeType: image/png
+        inlineDataLength: 552124
+    usageMetadata:
+      promptTokenCount: 11
+      candidatesTokenCount: 1290
+      totalTokenCount: 1301
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 11
+      candidatesTokensDetails:
+        - modality: IMAGE
+          tokenCount: 1290
+      serviceTier: standard
+    modelVersion: gemini-2.5-flash-image
+    responseId: AK4raumwJpLt2roPqqm5-Ak
+image:
+  images:
+    - chunkIndex: 0
+      partIndex: 0
+      artifact:
+        source: inlineData
+        index: 0
+        file: sample/image/92ed36b7293cac78edeeac8f866bcd7d9589a7c72f900b8aef2527e70667e879.png
+        hash: 92ed36b7293cac78edeeac8f866bcd7d9589a7c72f900b8aef2527e70667e879
+        mimeType: image/png
+        extension: png
+        bytes: 414093
+        base64Length: 552124
+        dataUrlLength: 552146
+  count: 1
+  hashes:
+    - 92ed36b7293cac78edeeac8f866bcd7d9589a7c72f900b8aef2527e70667e879
+buffer:
+  skipped: false
+  options:
+    flushStrategy: hybrid
+    bufferSize: 2
+    bufferBytes: 16384
+    maxWaitMs: 300
+    bufferMs: 300
+    emitProgress: true
+    meta:
+      provider: gemini
+      kind: image
+      model: gemini-2.5-flash-image
+  response:
+    - type: start
+      index: 0
+      createdAt: 1781247493553
+      meta:
+        provider: gemini
+        kind: image
+        model: gemini-2.5-flash-image
+    - type: progress
+      index: 2
+      createdAt: 1781247493782
+      meta:
+        provider: gemini
+        kind: image
+        model: gemini-2.5-flash-image
+      progress:
+        loadedChars: 552146
+        loadedBytes: 552146
+        bufferPercent: 99
+        source: chunk
+        pendingChunks: 1
+        pendingBytes: 552146
+        pendingChars: 552146
+        bufferElapsedMs: 0
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+    - type: flush
+      index: 3
+      createdAt: 1781247493783
+      meta:
+        provider: gemini
+        kind: image
+        model: gemini-2.5-flash-image
+      count: 1
+      chars: 552146
+      bytes: 552146
+      progress:
+        loadedChars: 552146
+        loadedBytes: 552146
+        bufferPercent: 100
+        source: flush
+        pendingChunks: 1
+        pendingBytes: 552146
+        pendingChars: 552146
+        bufferElapsedMs: 1
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+      data:
+        omitted: true
+        artifact:
+          file: sample/image/92ed36b7293cac78edeeac8f866bcd7d9589a7c72f900b8aef2527e70667e879.png
+          hash: 92ed36b7293cac78edeeac8f866bcd7d9589a7c72f900b8aef2527e70667e879
+          mimeType: image/png
+          bytes: 414093
+          base64Length: 552124
+          dataUrlLength: 552146
+      chunks:
+        - type: chunk
+          meta:
+            provider: gemini
+            kind: image
+            model: gemini-2.5-flash-image
+          index: 1
+          createdAt: 1781247493782
+          chars: 552146
+          bytes: 552146
+          progress:
+            loadedChars: 552146
+            loadedBytes: 552146
+            bufferPercent: 99
+            source: chunk
+            pendingChunks: 1
+            pendingBytes: 552146
+            pendingChars: 552146
+            bufferElapsedMs: 0
+            bufferTargetChunks: 2
+            bufferTargetBytes: 16384
+            bufferTargetMs: 300
+            estimated: true
+          data:
+            omitted: true
+            artifact:
+              file: sample/image/92ed36b7293cac78edeeac8f866bcd7d9589a7c72f900b8aef2527e70667e879.png
+              hash: 92ed36b7293cac78edeeac8f866bcd7d9589a7c72f900b8aef2527e70667e879
+              mimeType: image/png
+              bytes: 414093
+              base64Length: 552124
+              dataUrlLength: 552146
+    - type: eof
+      index: 4
+      createdAt: 1781247493787
+      meta:
+        provider: gemini
+        kind: image
+        model: gemini-2.5-flash-image
+      progress:
+        loadedChars: 552146
+        loadedBytes: 552146
+        percent: 100
+        bufferPercent: 100
+        source: eof
+        pendingChunks: 0
+        pendingBytes: 0
+        pendingChars: 0
+        bufferElapsedMs: 0
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+  summary:
+    - index: 0
+      type: start
+      eventIndex: 0
+      elapsedMs: 0
+      meta:
+        provider: gemini
+        kind: image
+        model: gemini-2.5-flash-image
+    - index: 1
+      type: progress
+      eventIndex: 2
+      elapsedMs: 229
+      progress:
+        loadedChars: 552146
+        loadedBytes: 552146
+        bufferPercent: 99
+        source: chunk
+        pendingChunks: 1
+        pendingBytes: 552146
+        pendingChars: 552146
+        bufferElapsedMs: 0
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+      meta:
+        provider: gemini
+        kind: image
+        model: gemini-2.5-flash-image
+    - index: 2
+      type: flush
+      eventIndex: 3
+      elapsedMs: 230
+      dataLength: 552146
+      count: 1
+      chars: 552146
+      bytes: 552146
+      progress:
+        loadedChars: 552146
+        loadedBytes: 552146
+        bufferPercent: 100
+        source: flush
+        pendingChunks: 1
+        pendingBytes: 552146
+        pendingChars: 552146
+        bufferElapsedMs: 1
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+      meta:
+        provider: gemini
+        kind: image
+        model: gemini-2.5-flash-image
+    - index: 3
+      type: eof
+      eventIndex: 4
+      elapsedMs: 234
+      progress:
+        loadedChars: 552146
+        loadedBytes: 552146
+        percent: 100
+        bufferPercent: 100
+        source: eof
+        pendingChunks: 0
+        pendingBytes: 0
+        pendingChars: 0
+        bufferElapsedMs: 0
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
+      meta:
+        provider: gemini
+        kind: image
+        model: gemini-2.5-flash-image
+  snapshot:
+    pendingChunks: 0
+    pendingChars: 0
+    pendingBytes: 0
+    loadedChars: 552146
+    loadedBytes: 552146
+    closed: true
+    progress:
+      loadedChars: 552146
+      loadedBytes: 552146
+      percent: 100
+      bufferPercent: 100
+      source: eof
+      pendingChunks: 0
+      pendingBytes: 0
+      pendingChars: 0
+      bufferElapsedMs: 0
+      bufferTargetChunks: 2
+      bufferTargetBytes: 16384
+      bufferTargetMs: 300
+      estimated: true
+managerCheck:
+  skipped: true
+  reason: Gemini manager check requires provider manager integration outside lemon-model.

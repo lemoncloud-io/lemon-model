@@ -1,0 +1,184 @@
+probe:
+  mode: manager
+  includeThoughtSignature: false
+  timing:
+    startedAt: 1781185970285
+    startedAtIso: '2026-06-11T13:52:50.285Z'
+    elapsedMs: 6976
+request:
+  model: gemini-2.5-flash-image
+  contents: A red cube
+  config:
+    responseModalities:
+      - IMAGE
+    imageConfig:
+      imageSize: 2K
+direct:
+  skipped: true
+  method: GoogleGenAI.models.generateContentStream
+  responseCount: 0
+  bufferEventCount: 0
+response: []
+summary: []
+image:
+  images: []
+  count: 0
+  hashes: []
+buffer:
+  skipped: true
+  options:
+    flushStrategy: hybrid
+    bufferSize: 2
+    bufferBytes: 16384
+    maxWaitMs: 300
+    bufferMs: 300
+    emitProgress: true
+    meta:
+      provider: gemini
+      kind: image
+      estimate:
+        totalBytes: 2700000
+        estimated: true
+        source: imageSize
+        confidence: 0.25
+      model: gemini-2.5-flash-image
+  response: []
+  summary: []
+  snapshot:
+    pendingChunks: 0
+    pendingChars: 0
+    pendingBytes: 0
+    loadedChars: 0
+    loadedBytes: 0
+    closed: false
+    progress:
+      loadedChars: 0
+      loadedBytes: 0
+      totalBytes: 2700000
+      percent: 0
+      estimated: true
+managerCheck:
+  method: GeminiManager.consumeGenerate2Stream
+  timing:
+    primitiveGenElapsedMs: 6389
+    streamCreateElapsedMs: 6389
+    consumeElapsedMs: 581
+    startedAt: 1781185976675
+    startedAtIso: '2026-06-11T13:52:56.675Z'
+  response:
+    text: ''
+    usageMetadata:
+      promptTokenCount: 4
+      candidatesTokenCount: 1290
+      totalTokenCount: 1294
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 4
+      candidatesTokensDetails:
+        - modality: IMAGE
+          tokenCount: 1290
+      serviceTier: standard
+  events:
+    - type: start
+      index: 0
+      createdAt: 1781185976676
+      meta:
+        provider: gemini
+        model: gemini-2.5-flash-image
+        kind: image
+    - type: flush
+      index: 2
+      createdAt: 1781185977254
+      meta:
+        provider: gemini
+        model: gemini-2.5-flash-image
+        kind: image
+      count: 1
+      chars: 1493930
+      bytes: 1493930
+      progress:
+        loadedChars: 1493930
+        loadedBytes: 1493930
+        estimated: true
+      data:
+        omitted: true
+        artifact:
+          file: sample/image/c4bf7d5471383a04ce93b26ce751ccabb9a3b6ad7bf9007a3f46fa3ade091996.png
+          hash: c4bf7d5471383a04ce93b26ce751ccabb9a3b6ad7bf9007a3f46fa3ade091996
+          mimeType: image/png
+          bytes: 1120430
+          base64Length: 1493908
+          dataUrlLength: 1493930
+      chunks:
+        - type: chunk
+          meta:
+            provider: gemini
+            model: gemini-2.5-flash-image
+            kind: image
+          index: 1
+          createdAt: 1781185977252
+          chars: 1493930
+          bytes: 1493930
+          progress:
+            loadedChars: 1493930
+            loadedBytes: 1493930
+            estimated: true
+          data:
+            omitted: true
+            artifact:
+              file: sample/image/c4bf7d5471383a04ce93b26ce751ccabb9a3b6ad7bf9007a3f46fa3ade091996.png
+              hash: c4bf7d5471383a04ce93b26ce751ccabb9a3b6ad7bf9007a3f46fa3ade091996
+              mimeType: image/png
+              bytes: 1120430
+              base64Length: 1493908
+              dataUrlLength: 1493930
+    - type: eof
+      index: 3
+      createdAt: 1781185977256
+      meta:
+        provider: gemini
+        model: gemini-2.5-flash-image
+        kind: image
+      progress:
+        loadedChars: 1493930
+        loadedBytes: 1493930
+        percent: 100
+        estimated: true
+  summary:
+    - index: 0
+      type: start
+      eventIndex: 0
+      elapsedMs: 1
+      meta:
+        provider: gemini
+        model: gemini-2.5-flash-image
+        kind: image
+    - index: 1
+      type: flush
+      eventIndex: 2
+      elapsedMs: 579
+      dataLength: 1493930
+      count: 1
+      chars: 1493930
+      bytes: 1493930
+      progress:
+        loadedChars: 1493930
+        loadedBytes: 1493930
+        estimated: true
+      meta:
+        provider: gemini
+        model: gemini-2.5-flash-image
+        kind: image
+    - index: 2
+      type: eof
+      eventIndex: 3
+      elapsedMs: 581
+      progress:
+        loadedChars: 1493930
+        loadedBytes: 1493930
+        percent: 100
+        estimated: true
+      meta:
+        provider: gemini
+        model: gemini-2.5-flash-image
+        kind: image

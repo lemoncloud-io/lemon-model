@@ -1,0 +1,84 @@
+request:
+  model: gpt-5-mini
+  input:
+    - role: user
+      content: Return 2 color names and hex values.
+  text:
+    format:
+      type: json_schema
+      name: colors
+      strict: true
+      schema:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+            value:
+              type: string
+          required:
+            - name
+            - value
+  stream: true
+response:
+  - type: response.created
+    sequence_number: 0
+    response:
+      id: resp_mock_json
+      object: response
+      created_at: 1767968905
+      status: in_progress
+      model: gpt-5-mini
+      output: []
+  - type: response.output_text.delta
+    sequence_number: 1
+    output_index: 0
+    content_index: 0
+    delta: '[{"name":"red","value":"#ff0000"},'
+  - type: response.output_text.delta
+    sequence_number: 2
+    output_index: 0
+    content_index: 0
+    delta: '{"name":"blue","value":"#0000ff"}]'
+  - type: response.completed
+    sequence_number: 3
+    response:
+      id: resp_mock_json
+      object: response
+      created_at: 1767968905
+      status: completed
+      model: gpt-5-mini
+      output:
+        - id: msg_mock_json
+          type: message
+          status: completed
+          role: assistant
+          content:
+            - type: output_text
+              text: '[{"name":"red","value":"#ff0000"},{"name":"blue","value":"#0000ff"}]'
+              annotations: []
+      usage:
+        input_tokens: 20
+        output_tokens: 18
+        total_tokens: 38
+finalResponse:
+  id: resp_mock_json
+  object: response
+  created_at: 1767968905
+  status: completed
+  model: gpt-5-mini
+  output:
+    - id: msg_mock_json
+      type: message
+      status: completed
+      role: assistant
+      content:
+        - type: output_text
+          text: '[{"name":"red","value":"#ff0000"},{"name":"blue","value":"#0000ff"}]'
+          annotations: []
+  usage:
+    input_tokens: 20
+    output_tokens: 18
+    total_tokens: 38
