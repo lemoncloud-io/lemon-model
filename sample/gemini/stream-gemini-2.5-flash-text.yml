@@ -1,25 +1,80 @@
 probe:
-  mode: manager
+  mode: direct
   includeThoughtSignature: false
   timing:
-    startedAt: 1781186267954
-    startedAtIso: '2026-06-11T13:57:47.954Z'
-    elapsedMs: 8955
+    startedAt: 1781247408360
+    startedAtIso: '2026-06-12T06:56:48.360Z'
+    elapsedMs: 1189
 request:
   model: gemini-2.5-flash
-  contents: say 8 kinds of hello
+  contents: Say hello in one short sentence.
 direct:
-  skipped: true
+  skipped: false
   method: GoogleGenAI.models.generateContentStream
-  responseCount: 0
-  bufferEventCount: 0
-response: []
-summary: []
+  timing:
+    streamCreateElapsedMs: 1175
+    consumeElapsedMs: 9
+    startedAt: 1781247409540
+    startedAtIso: '2026-06-12T06:56:49.540Z'
+  responseCount: 1
+  bufferEventCount: 4
+response:
+  - candidates:
+      - content:
+          parts:
+            - text: Hello!
+          role: model
+        finishReason: STOP
+        index: 0
+    modelVersion: gemini-2.5-flash
+    responseId: sK0raqWAJZnR1e8PvO--uQI
+    usageMetadata:
+      promptTokenCount: 8
+      candidatesTokenCount: 2
+      totalTokenCount: 31
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 8
+      thoughtsTokenCount: 21
+      serviceTier: standard
+    sdkHttpResponse:
+      headers:
+        alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+        content-disposition: attachment
+        content-type: text/event-stream
+        date: Fri, 12 Jun 2026 06:56:49 GMT
+        server: scaffolding on HTTPServer2
+        server-timing: gfet4t7; dur=962
+        transfer-encoding: chunked
+        vary: Origin, X-Origin, Referer
+        x-content-type-options: nosniff
+        x-frame-options: SAMEORIGIN
+        x-xss-protection: '0'
+summary:
+  - index: 0
+    elapsedMs: 3
+    text: Hello!
+    candidateCount: 1
+    finishReason: STOP
+    parts:
+      - hasText: true
+        textLength: 6
+    usageMetadata:
+      promptTokenCount: 8
+      candidatesTokenCount: 2
+      totalTokenCount: 31
+      promptTokensDetails:
+        - modality: TEXT
+          tokenCount: 8
+      thoughtsTokenCount: 21
+      serviceTier: standard
+    modelVersion: gemini-2.5-flash
+    responseId: sK0raqWAJZnR1e8PvO--uQI
 buffer:
-  skipped: true
+  skipped: false
   options:
     flushStrategy: hybrid
-    bufferSize: 1
+    bufferSize: 2
     bufferBytes: 16384
     maxWaitMs: 300
     bufferMs: 300
@@ -28,381 +83,102 @@ buffer:
       provider: gemini
       kind: text
       model: gemini-2.5-flash
-  response: []
-  summary: []
-  snapshot:
-    pendingChunks: 0
-    pendingChars: 0
-    pendingBytes: 0
-    loadedChars: 0
-    loadedBytes: 0
-    closed: false
-    progress:
-      loadedChars: 0
-      loadedBytes: 0
-      estimated: true
-managerCheck:
-  method: GeminiManager.consumeGenerate2Stream
-  timing:
-    primitiveGenElapsedMs: 6977
-    streamCreateElapsedMs: 6977
-    consumeElapsedMs: 1977
-    startedAt: 1781186274932
-    startedAtIso: '2026-06-11T13:57:54.932Z'
   response:
-    text: |-
-      Here are 8 kinds of "hello," varying in formality, region, and context:
-
-      1.  **The Classic:** **Hello.**
-          *   *Usage:* Standard, versatile, can be used in almost any situation, polite.
-
-      2.  **The Casual:** **Hi!** or **Hey!**
-          *   *Usage:* Informal, friendly, common among friends, family, or in casual settings. "Hey" can also be used to get someone's attention.
-
-      3.  **The Formal/Polite:** **Good morning/afternoon/evening.**
-          *   *Usage:* Respectful, time-specific, used in professional settings, when meeting elders, or in customer service.
-
-      4.  **The Enthusiastic:** **Well, hello there!** or **Helloooo!** (with a prolonged 'o')
-          *   *Usage:* Conveys surprise, warmth, or excitement, often when you haven't seen someone in a while or are particularly pleased to see them.
-
-      5.  **The Question-as-Greeting:** **How's it going?** or **What's up?** (often shortened to "Wassup?")
-          *   *Usage:* Very informal, common among friends, serves as both a greeting and a casual inquiry about well-being. "What's up?" is more distinctly American slang.
-
-      6.  **The Regional/Quirky:** **Howdy!**
-          *   *Usage:* Informal, common in certain parts of the US (especially the South and West), evokes a friendly, folksy charm.
-
-      7.  **The Group Greeting:** **Hello everyone!** or **Hi folks!**
-          *   *Usage:* When addressing multiple people at once, good for meetings, gatherings, or starting a presentation.
-
-      8.  **The Playful/Slightly Formal (often ironic):** **Greetings!** or **Salutations!**
-          *   *Usage:* Can be used seriously in very formal written contexts, but often used playfully or ironically in spoken language to add a touch of old-fashioned charm or humor.
-    usageMetadata:
-      promptTokenCount: 7
-      candidatesTokenCount: 449
-      totalTokenCount: 1490
-      promptTokensDetails:
-        - modality: TEXT
-          tokenCount: 7
-      thoughtsTokenCount: 1034
-      serviceTier: standard
-  events:
     - type: start
       index: 0
-      createdAt: 1781186274932
+      createdAt: 1781247409540
       meta:
         provider: gemini
-        model: gemini-2.5-flash
         kind: text
+        model: gemini-2.5-flash
+    - type: progress
+      index: 2
+      createdAt: 1781247409543
+      meta:
+        provider: gemini
+        kind: text
+        model: gemini-2.5-flash
+      progress:
+        loadedChars: 6
+        loadedBytes: 6
+        bufferPercent: 50
+        source: chunk
+        pendingChunks: 1
+        pendingBytes: 6
+        pendingChars: 6
+        bufferElapsedMs: 0
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
+        estimated: true
     - type: flush
-      index: 4
-      createdAt: 1781186275236
+      index: 3
+      createdAt: 1781247409549
       meta:
         provider: gemini
-        model: gemini-2.5-flash
         kind: text
-      data: |-
-        Here are 8 kinds of "hello," varying in formality, region, and context:
-
-        1.  **The Classic:** **Hello.**
-            *   *Usage:* Standard, versatile, can be used in almost any situation, polite.
-
-        2.  **The Casual:** **Hi!** or **Hey!**
-            *   *Usage:* Informal, friendly, common among friends, family, or in casual settings. "Hey" can also be used to get someone's attention.
-
-        3.  **The Formal/Polite:** **
+        model: gemini-2.5-flash
+      data: Hello!
       chunks:
         - type: chunk
-          data: Here are 8 kinds of "hello," varying in formality, region, and context
+          data: Hello!
           meta:
             provider: gemini
-            model: gemini-2.5-flash
             kind: text
+            model: gemini-2.5-flash
           index: 1
-          createdAt: 1781186274935
-          chars: 70
-          bytes: 70
+          createdAt: 1781247409543
+          chars: 6
+          bytes: 6
           progress:
-            loadedChars: 70
-            loadedBytes: 70
-            estimated: true
-        - type: chunk
-          data: |-
-            :
-
-            1.  **The Classic:** **Hello.**
-                *   *Usage:* Standard, versatile, can be used in almost any situation, polite.
-
-            2.  **The Casual:** **Hi!** or **Hey
-          meta:
-            provider: gemini
-            model: gemini-2.5-flash
-            kind: text
-          index: 2
-          createdAt: 1781186274937
-          chars: 155
-          bytes: 155
-          progress:
-            loadedChars: 225
-            loadedBytes: 225
-            estimated: true
-        - type: chunk
-          data: |-
-            !**
-                *   *Usage:* Informal, friendly, common among friends, family, or in casual settings. "Hey" can also be used to get someone's attention.
-
-            3.  **The Formal/Polite:** **
-          meta:
-            provider: gemini
-            model: gemini-2.5-flash
-            kind: text
-          index: 3
-          createdAt: 1781186275160
-          chars: 175
-          bytes: 175
-          progress:
-            loadedChars: 400
-            loadedBytes: 400
-            estimated: true
-      count: 3
-      chars: 400
-      bytes: 400
-      progress:
-        loadedChars: 400
-        loadedBytes: 400
-        estimated: true
-    - type: flush
-      index: 6
-      createdAt: 1781186275701
-      meta:
-        provider: gemini
-        model: gemini-2.5-flash
-        kind: text
-      data: |-
-        Good morning/afternoon/evening.**
-            *   *Usage:* Respectful, time-specific, used in professional settings, when meeting elders, or in customer service.
-
-        4.  **The Enthusiastic:** **Well, hello
-      chunks:
-        - type: chunk
-          data: |-
-            Good morning/afternoon/evening.**
-                *   *Usage:* Respectful, time-specific, used in professional settings, when meeting elders, or in customer service.
-
-            4.  **The Enthusiastic:** **Well, hello
-          meta:
-            provider: gemini
-            model: gemini-2.5-flash
-            kind: text
-          index: 5
-          createdAt: 1781186275401
-          chars: 194
-          bytes: 194
-          progress:
-            loadedChars: 594
-            loadedBytes: 594
+            loadedChars: 6
+            loadedBytes: 6
+            bufferPercent: 50
+            source: chunk
+            pendingChunks: 1
+            pendingBytes: 6
+            pendingChars: 6
+            bufferElapsedMs: 0
+            bufferTargetChunks: 2
+            bufferTargetBytes: 16384
+            bufferTargetMs: 300
             estimated: true
       count: 1
-      chars: 194
-      bytes: 194
+      chars: 6
+      bytes: 6
       progress:
-        loadedChars: 594
-        loadedBytes: 594
-        estimated: true
-    - type: flush
-      index: 9
-      createdAt: 1781186276061
-      meta:
-        provider: gemini
-        model: gemini-2.5-flash
-        kind: text
-      data: |2-
-         there!** or **Helloooo!** (with a prolonged 'o')
-            *   *Usage:* Conveys surprise, warmth, or excitement, often when you haven't seen someone in a while or are particularly pleased to see them.
-
-        5.  **The Question-as-Greeting:** **How's it going?** or **What's up?** (often shortened to "Wassup?")
-            *   *Usage:* Very informal, common among friends
-      chunks:
-        - type: chunk
-          data: |2-
-             there!** or **Helloooo!** (with a prolonged 'o')
-                *   *Usage:* Conveys surprise, warmth, or excitement, often when you haven't seen someone in a while or are particularly pleased to see them
-          meta:
-            provider: gemini
-            model: gemini-2.5-flash
-            kind: text
-          index: 7
-          createdAt: 1781186275759
-          chars: 194
-          bytes: 194
-          progress:
-            loadedChars: 788
-            loadedBytes: 788
-            estimated: true
-        - type: chunk
-          data: |-
-            .
-
-            5.  **The Question-as-Greeting:** **How's it going?** or **What's up?** (often shortened to "Wassup?")
-                *   *Usage:* Very informal, common among friends
-          meta:
-            provider: gemini
-            model: gemini-2.5-flash
-            kind: text
-          index: 8
-          createdAt: 1781186275871
-          chars: 158
-          bytes: 158
-          progress:
-            loadedChars: 946
-            loadedBytes: 946
-            estimated: true
-      count: 2
-      chars: 352
-      bytes: 352
-      progress:
-        loadedChars: 946
-        loadedBytes: 946
-        estimated: true
-    - type: flush
-      index: 11
-      createdAt: 1781186276366
-      meta:
-        provider: gemini
-        model: gemini-2.5-flash
-        kind: text
-      data: |-
-        , serves as both a greeting and a casual inquiry about well-being. "What's up?" is more distinctly American slang.
-
-        6.  **The Regional/Quirky:** **Howdy!**
-            *   
-      chunks:
-        - type: chunk
-          data: |-
-            , serves as both a greeting and a casual inquiry about well-being. "What's up?" is more distinctly American slang.
-
-            6.  **The Regional/Quirky:** **Howdy!**
-                *   
-          meta:
-            provider: gemini
-            model: gemini-2.5-flash
-            kind: text
-          index: 10
-          createdAt: 1781186276065
-          chars: 164
-          bytes: 164
-          progress:
-            loadedChars: 1110
-            loadedBytes: 1110
-            estimated: true
-      count: 1
-      chars: 164
-      bytes: 164
-      progress:
-        loadedChars: 1110
-        loadedBytes: 1110
-        estimated: true
-    - type: flush
-      index: 14
-      createdAt: 1781186276672
-      meta:
-        provider: gemini
-        model: gemini-2.5-flash
-        kind: text
-      data: |-
-        *Usage:* Informal, common in certain parts of the US (especially the South and West), evokes a friendly, folksy charm.
-
-        7.  **The Group Greeting:** **Hello everyone!** or **Hi folks!**
-            *   *Usage:* When addressing multiple people at once, good for meetings, gatherings, or starting a presentation.
-
-        8.  **The Playful/Slightly Formal (often ironic):** **Greetings!** or **Salutations!
-      chunks:
-        - type: chunk
-          data: |-
-            *Usage:* Informal, common in certain parts of the US (especially the South and West), evokes a friendly, folksy charm.
-
-            7.  **The Group Greeting:** **Hello everyone!** or **Hi folks!**
-                *
-          meta:
-            provider: gemini
-            model: gemini-2.5-flash
-            kind: text
-          index: 12
-          createdAt: 1781186276371
-          chars: 190
-          bytes: 190
-          progress:
-            loadedChars: 1300
-            loadedBytes: 1300
-            estimated: true
-        - type: chunk
-          data: |2-
-               *Usage:* When addressing multiple people at once, good for meetings, gatherings, or starting a presentation.
-
-            8.  **The Playful/Slightly Formal (often ironic):** **Greetings!** or **Salutations!
-          meta:
-            provider: gemini
-            model: gemini-2.5-flash
-            kind: text
-          index: 13
-          createdAt: 1781186276579
-          chars: 197
-          bytes: 197
-          progress:
-            loadedChars: 1497
-            loadedBytes: 1497
-            estimated: true
-      count: 2
-      chars: 387
-      bytes: 387
-      progress:
-        loadedChars: 1497
-        loadedBytes: 1497
-        estimated: true
-    - type: flush
-      index: 16
-      createdAt: 1781186276909
-      meta:
-        provider: gemini
-        model: gemini-2.5-flash
-        kind: text
-      data: |-
-        **
-            *   *Usage:* Can be used seriously in very formal written contexts, but often used playfully or ironically in spoken language to add a touch of old-fashioned charm or humor.
-      chunks:
-        - type: chunk
-          data: |-
-            **
-                *   *Usage:* Can be used seriously in very formal written contexts, but often used playfully or ironically in spoken language to add a touch of old-fashioned charm or humor.
-          meta:
-            provider: gemini
-            model: gemini-2.5-flash
-            kind: text
-          index: 15
-          createdAt: 1781186276811
-          chars: 180
-          bytes: 180
-          progress:
-            loadedChars: 1677
-            loadedBytes: 1677
-            estimated: true
-      count: 1
-      chars: 180
-      bytes: 180
-      progress:
-        loadedChars: 1677
-        loadedBytes: 1677
+        loadedChars: 6
+        loadedBytes: 6
+        bufferPercent: 100
+        source: flush
+        pendingChunks: 1
+        pendingBytes: 6
+        pendingChars: 6
+        bufferElapsedMs: 6
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
         estimated: true
     - type: eof
-      index: 17
-      createdAt: 1781186276909
+      index: 4
+      createdAt: 1781247409549
       meta:
         provider: gemini
-        model: gemini-2.5-flash
         kind: text
+        model: gemini-2.5-flash
       progress:
-        loadedChars: 1677
-        loadedBytes: 1677
+        loadedChars: 6
+        loadedBytes: 6
         percent: 100
+        bufferPercent: 100
+        source: eof
+        pendingChunks: 0
+        pendingBytes: 0
+        pendingChars: 0
+        bufferElapsedMs: 0
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
         estimated: true
   summary:
     - index: 0
@@ -411,114 +187,97 @@ managerCheck:
       elapsedMs: 0
       meta:
         provider: gemini
-        model: gemini-2.5-flash
         kind: text
+        model: gemini-2.5-flash
     - index: 1
-      type: flush
-      eventIndex: 4
-      elapsedMs: 304
-      dataLength: 400
-      count: 3
-      chars: 400
-      bytes: 400
+      type: progress
+      eventIndex: 2
+      elapsedMs: 3
       progress:
-        loadedChars: 400
-        loadedBytes: 400
+        loadedChars: 6
+        loadedBytes: 6
+        bufferPercent: 50
+        source: chunk
+        pendingChunks: 1
+        pendingBytes: 6
+        pendingChars: 6
+        bufferElapsedMs: 0
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
         estimated: true
       meta:
         provider: gemini
-        model: gemini-2.5-flash
         kind: text
+        model: gemini-2.5-flash
     - index: 2
       type: flush
-      eventIndex: 6
-      elapsedMs: 769
-      dataLength: 194
+      eventIndex: 3
+      elapsedMs: 9
+      dataLength: 6
       count: 1
-      chars: 194
-      bytes: 194
+      chars: 6
+      bytes: 6
       progress:
-        loadedChars: 594
-        loadedBytes: 594
+        loadedChars: 6
+        loadedBytes: 6
+        bufferPercent: 100
+        source: flush
+        pendingChunks: 1
+        pendingBytes: 6
+        pendingChars: 6
+        bufferElapsedMs: 6
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
         estimated: true
       meta:
         provider: gemini
-        model: gemini-2.5-flash
         kind: text
+        model: gemini-2.5-flash
     - index: 3
-      type: flush
-      eventIndex: 9
-      elapsedMs: 1129
-      dataLength: 352
-      count: 2
-      chars: 352
-      bytes: 352
-      progress:
-        loadedChars: 946
-        loadedBytes: 946
-        estimated: true
-      meta:
-        provider: gemini
-        model: gemini-2.5-flash
-        kind: text
-    - index: 4
-      type: flush
-      eventIndex: 11
-      elapsedMs: 1434
-      dataLength: 164
-      count: 1
-      chars: 164
-      bytes: 164
-      progress:
-        loadedChars: 1110
-        loadedBytes: 1110
-        estimated: true
-      meta:
-        provider: gemini
-        model: gemini-2.5-flash
-        kind: text
-    - index: 5
-      type: flush
-      eventIndex: 14
-      elapsedMs: 1740
-      dataLength: 387
-      count: 2
-      chars: 387
-      bytes: 387
-      progress:
-        loadedChars: 1497
-        loadedBytes: 1497
-        estimated: true
-      meta:
-        provider: gemini
-        model: gemini-2.5-flash
-        kind: text
-    - index: 6
-      type: flush
-      eventIndex: 16
-      elapsedMs: 1977
-      dataLength: 180
-      count: 1
-      chars: 180
-      bytes: 180
-      progress:
-        loadedChars: 1677
-        loadedBytes: 1677
-        estimated: true
-      meta:
-        provider: gemini
-        model: gemini-2.5-flash
-        kind: text
-    - index: 7
       type: eof
-      eventIndex: 17
-      elapsedMs: 1977
+      eventIndex: 4
+      elapsedMs: 9
       progress:
-        loadedChars: 1677
-        loadedBytes: 1677
+        loadedChars: 6
+        loadedBytes: 6
         percent: 100
+        bufferPercent: 100
+        source: eof
+        pendingChunks: 0
+        pendingBytes: 0
+        pendingChars: 0
+        bufferElapsedMs: 0
+        bufferTargetChunks: 2
+        bufferTargetBytes: 16384
+        bufferTargetMs: 300
         estimated: true
       meta:
         provider: gemini
-        model: gemini-2.5-flash
         kind: text
+        model: gemini-2.5-flash
+  snapshot:
+    pendingChunks: 0
+    pendingChars: 0
+    pendingBytes: 0
+    loadedChars: 6
+    loadedBytes: 6
+    closed: true
+    progress:
+      loadedChars: 6
+      loadedBytes: 6
+      percent: 100
+      bufferPercent: 100
+      source: eof
+      pendingChunks: 0
+      pendingBytes: 0
+      pendingChars: 0
+      bufferElapsedMs: 0
+      bufferTargetChunks: 2
+      bufferTargetBytes: 16384
+      bufferTargetMs: 300
+      estimated: true
+managerCheck:
+  skipped: true
+  reason: Gemini manager check requires provider manager integration outside lemon-model.

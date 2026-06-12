@@ -60,6 +60,7 @@ describe('buffer stream probe samples', () => {
 
         expect2(() => refs).toEqual([
             'sample/image/33e47403d5a593712759cd94a8eb4cb9fceb9e94b7cf9c4da1c6b933083d858e.jpg',
+            'sample/image/92ed36b7293cac78edeeac8f866bcd7d9589a7c72f900b8aef2527e70667e879.png',
             'sample/image/99108ce2b73dfa9e7be251973a0edf111fe42c27743ebebeebe7da8dc0868b8c.png',
             'sample/image/c4bf7d5471383a04ce93b26ce751ccabb9a3b6ad7bf9007a3f46fa3ade091996.png',
             'sample/image/db49ec262397c594d6522cde5fded5ee71d2fb2ccd13f683e784190286857551.png',

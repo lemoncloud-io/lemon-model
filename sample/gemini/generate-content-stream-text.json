@@ -1,7 +1,7 @@
 {
   "request": {
     "model": "gemini-2.5-flash",
-    "contents": "Say hello in two short sentences."
+    "contents": "Say hello in one short sentence."
   },
   "response": [
     {
@@ -10,29 +10,7 @@
           "content": {
             "parts": [
               {
-                "text": "Hello from "
-              }
-            ],
-            "role": "model"
-          },
-          "index": 0
-        }
-      ],
-      "modelVersion": "gemini-2.5-flash",
-      "responseId": "mock-stream-text",
-      "usageMetadata": {
-        "promptTokenCount": 8,
-        "candidatesTokenCount": 2,
-        "totalTokenCount": 10
-      }
-    },
-    {
-      "candidates": [
-        {
-          "content": {
-            "parts": [
-              {
-                "text": "Gemini stream."
+                "text": "Hello!"
               }
             ],
             "role": "model"
@@ -42,51 +20,65 @@
         }
       ],
       "modelVersion": "gemini-2.5-flash",
-      "responseId": "mock-stream-text",
+      "responseId": "sK0raqWAJZnR1e8PvO--uQI",
       "usageMetadata": {
         "promptTokenCount": 8,
-        "candidatesTokenCount": 5,
-        "totalTokenCount": 13
+        "candidatesTokenCount": 2,
+        "totalTokenCount": 31,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 8
+          }
+        ],
+        "thoughtsTokenCount": 21,
+        "serviceTier": "standard"
+      },
+      "sdkHttpResponse": {
+        "headers": {
+          "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+          "content-disposition": "attachment",
+          "content-type": "text/event-stream",
+          "date": "Fri, 12 Jun 2026 06:56:49 GMT",
+          "server": "scaffolding on HTTPServer2",
+          "server-timing": "gfet4t7; dur=962",
+          "transfer-encoding": "chunked",
+          "vary": "Origin, X-Origin, Referer",
+          "x-content-type-options": "nosniff",
+          "x-frame-options": "SAMEORIGIN",
+          "x-xss-protection": "0"
+        }
       }
     }
   ],
   "summary": [
     {
       "index": 0,
-      "text": "Hello from ",
-      "candidateCount": 1,
-      "parts": [
-        {
-          "hasText": true,
-          "textLength": 11
-        }
-      ],
-      "usageMetadata": {
-        "promptTokenCount": 8,
-        "candidatesTokenCount": 2,
-        "totalTokenCount": 10
-      },
-      "modelVersion": "gemini-2.5-flash",
-      "responseId": "mock-stream-text"
-    },
-    {
-      "index": 1,
-      "text": "Gemini stream.",
+      "elapsedMs": 3,
+      "text": "Hello!",
       "candidateCount": 1,
       "finishReason": "STOP",
       "parts": [
         {
           "hasText": true,
-          "textLength": 14
+          "textLength": 6
         }
       ],
       "usageMetadata": {
         "promptTokenCount": 8,
-        "candidatesTokenCount": 5,
-        "totalTokenCount": 13
+        "candidatesTokenCount": 2,
+        "totalTokenCount": 31,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 8
+          }
+        ],
+        "thoughtsTokenCount": 21,
+        "serviceTier": "standard"
       },
       "modelVersion": "gemini-2.5-flash",
-      "responseId": "mock-stream-text"
+      "responseId": "sK0raqWAJZnR1e8PvO--uQI"
     }
   ]
 }

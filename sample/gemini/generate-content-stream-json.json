@@ -1,7 +1,7 @@
 {
   "request": {
     "model": "gemini-2.5-flash",
-    "contents": "Return two colors.",
+    "contents": "Return 3 color names and hex values.",
     "config": {
       "responseMimeType": "application/json",
       "responseSchema": {
@@ -31,7 +31,7 @@
           "content": {
             "parts": [
               {
-                "text": "[{\"name\":\"red\","
+                "text": "[{\""
               }
             ],
             "role": "model"
@@ -40,11 +40,34 @@
         }
       ],
       "modelVersion": "gemini-2.5-flash",
-      "responseId": "mock-stream-json",
+      "responseId": "1a0ratB7upnV7w-Am8Ax",
       "usageMetadata": {
-        "promptTokenCount": 12,
-        "candidatesTokenCount": 4,
-        "totalTokenCount": 16
+        "promptTokenCount": 10,
+        "candidatesTokenCount": 2,
+        "totalTokenCount": 116,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 10
+          }
+        ],
+        "thoughtsTokenCount": 104,
+        "serviceTier": "standard"
+      },
+      "sdkHttpResponse": {
+        "headers": {
+          "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+          "content-disposition": "attachment",
+          "content-type": "text/event-stream",
+          "date": "Fri, 12 Jun 2026 06:57:26 GMT",
+          "server": "scaffolding on HTTPServer2",
+          "server-timing": "gfet4t7; dur=1775",
+          "transfer-encoding": "chunked",
+          "vary": "Origin, X-Origin, Referer",
+          "x-content-type-options": "nosniff",
+          "x-frame-options": "SAMEORIGIN",
+          "x-xss-protection": "0"
+        }
       }
     },
     {
@@ -53,7 +76,7 @@
           "content": {
             "parts": [
               {
-                "text": "\"value\":\"#ff0000\"},{\"name\":\"blue\",\"value\":\"#0000ff\"}]"
+                "text": "name\":\"Red\",\"value\":\"#FF0000\"},{\"name\":\"Green\",\"value\":\"#00FF00\"},{\"name\":\"Blue\",\"value\":\"#0000FF\"}]"
               }
             ],
             "role": "model"
@@ -63,51 +86,92 @@
         }
       ],
       "modelVersion": "gemini-2.5-flash",
-      "responseId": "mock-stream-json",
+      "responseId": "1a0ratB7upnV7w-Am8Ax",
       "usageMetadata": {
-        "promptTokenCount": 12,
-        "candidatesTokenCount": 14,
-        "totalTokenCount": 26
+        "promptTokenCount": 10,
+        "candidatesTokenCount": 42,
+        "totalTokenCount": 156,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 10
+          }
+        ],
+        "thoughtsTokenCount": 104,
+        "serviceTier": "standard"
+      },
+      "sdkHttpResponse": {
+        "headers": {
+          "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+          "content-disposition": "attachment",
+          "content-type": "text/event-stream",
+          "date": "Fri, 12 Jun 2026 06:57:26 GMT",
+          "server": "scaffolding on HTTPServer2",
+          "server-timing": "gfet4t7; dur=1775",
+          "transfer-encoding": "chunked",
+          "vary": "Origin, X-Origin, Referer",
+          "x-content-type-options": "nosniff",
+          "x-frame-options": "SAMEORIGIN",
+          "x-xss-protection": "0"
+        }
       }
     }
   ],
   "summary": [
     {
       "index": 0,
-      "text": "[{\"name\":\"red\",",
+      "elapsedMs": 2,
+      "text": "[{\"",
       "candidateCount": 1,
       "parts": [
         {
           "hasText": true,
-          "textLength": 15
+          "textLength": 3
         }
       ],
       "usageMetadata": {
-        "promptTokenCount": 12,
-        "candidatesTokenCount": 4,
-        "totalTokenCount": 16
+        "promptTokenCount": 10,
+        "candidatesTokenCount": 2,
+        "totalTokenCount": 116,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 10
+          }
+        ],
+        "thoughtsTokenCount": 104,
+        "serviceTier": "standard"
       },
       "modelVersion": "gemini-2.5-flash",
-      "responseId": "mock-stream-json"
+      "responseId": "1a0ratB7upnV7w-Am8Ax"
     },
     {
       "index": 1,
-      "text": "\"value\":\"#ff0000\"},{\"name\":\"blue\",\"value\":\"#0000ff\"}]",
+      "elapsedMs": 3,
+      "text": "name\":\"Red\",\"value\":\"#FF0000\"},{\"name\":\"Green\",\"value\":\"#00FF00\"},{\"name\":\"Blue\",\"value\":\"#0000FF\"}]",
       "candidateCount": 1,
       "finishReason": "STOP",
       "parts": [
         {
           "hasText": true,
-          "textLength": 58
+          "textLength": 100
         }
       ],
       "usageMetadata": {
-        "promptTokenCount": 12,
-        "candidatesTokenCount": 14,
-        "totalTokenCount": 26
+        "promptTokenCount": 10,
+        "candidatesTokenCount": 42,
+        "totalTokenCount": 156,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 10
+          }
+        ],
+        "thoughtsTokenCount": 104,
+        "serviceTier": "standard"
       },
       "modelVersion": "gemini-2.5-flash",
-      "responseId": "mock-stream-json"
+      "responseId": "1a0ratB7upnV7w-Am8Ax"
     }
   ]
 }
