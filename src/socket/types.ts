@@ -61,6 +61,8 @@ export interface NetworkSupportable {
     readonly readyState: SocketReadyState;
     /** wait until this network is ready for send/onMessage usage */
     ready?(): Promise<void>;
+    /** subscribe to the synchronous open event (decorators must delegate to preserve composition) */
+    onOpen?(handler: () => void): SocketUnsubscribe;
     /** send raw string data over the network */
     send(data: string): void;
     /** subscribe to raw string data delivered from the network */
@@ -69,8 +71,8 @@ export interface NetworkSupportable {
     configure?(options: SocketNetworkOptions): void;
     /** observe asynchronous network delivery errors */
     onError(handler: SocketErrorHandler): SocketUnsubscribe;
-    /** close the network permanently */
-    close(): void;
+    /** close the network permanently (code/reason forwarded when the network owns the socket) */
+    close(code?: number, reason?: string): void;
 }
 
 /**

@@ -193,10 +193,13 @@ describe('OwnedWebSocketNetwork', () => {
         expect2(() => network.readyState).toEqual('connecting');
         let resolved = false;
         const pending = network.ready().then(() => (resolved = true));
+        let openedSync = false;
+        network.onOpen(() => (openedSync = true));
         await new Promise(resolve => setTimeout(resolve, 5));
         expect2(() => resolved).toEqual(false);
 
         ws.open();
+        expect2(() => openedSync).toEqual(true); // onOpen fires synchronously on the open event
         await pending;
         expect2(() => resolved).toEqual(true);
         expect2(() => network.readyState).toEqual('open');
@@ -268,8 +271,9 @@ describe('OwnedWebSocketNetwork', () => {
         const ws = new FakeOwnedWebSocket(1);
         const network = createOwnedWebSocketNetwork({ url: 'wss://x', socketFactory: () => ws });
 
-        network.close();
+        network.close(1012, 'service-restart');
         expect2(() => ws.closeCalls.length).toEqual(1);
+        expect2(() => ws.closeCalls[0]).toEqual({ code: 1012, reason: 'service-restart' });
         expect2(() => network.readyState).toEqual('closed');
     });
 });

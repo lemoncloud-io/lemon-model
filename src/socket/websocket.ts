@@ -297,11 +297,16 @@ export interface OwnedWebSocketNetworkOptions {
  */
 export class OwnedWebSocketNetwork implements NetworkSupportable {
     private readonly ws: WebSocketClosable;
+    private readonly openHandlers = new Set<() => void>();
     private readonly messageHandlers = new Set<NetworkMessageHandler>();
     private readonly errorHandlers = new Set<SocketErrorHandler>();
     private readonly opened: Promise<void>;
     private closed = false;
 
+    private readonly handleOpen = () => {
+        if (this.closed) return;
+        for (const handler of [...this.openHandlers]) handler();
+    };
     private readonly handleMessage = (event: WebSocketCompartibleEventMap['message']) => {
         if (this.closed || typeof event.data !== 'string') return;
         for (const handler of [...this.messageHandlers]) handler(event.data);
@@ -320,9 +325,17 @@ export class OwnedWebSocketNetwork implements NetworkSupportable {
             ? options.socketFactory({ url: options.url, protocols: options.protocols })
             : createDefaultWebSocket(options);
         this.opened = this.buildOpened(options.connectTimeoutMs ?? 15_000);
+        this.ws.addEventListener('open', this.handleOpen);
         this.ws.addEventListener('message', this.handleMessage);
         this.ws.addEventListener('error', this.handleError);
         this.ws.addEventListener('close', this.handleClose);
+    }
+
+    /** subscribe to the synchronous open event (in addition to the `ready()` promise) */
+    public onOpen(handler: () => void): SocketUnsubscribe {
+        if (this.closed) throw new Error(`@network connection error: closed - ownedWebSocket.onOpen`);
+        this.openHandlers.add(handler);
+        return () => this.openHandlers.delete(handler);
     }
 
     public get readyState(): SocketReadyState {
@@ -360,16 +373,18 @@ export class OwnedWebSocketNetwork implements NetworkSupportable {
         return () => this.errorHandlers.delete(handler);
     }
 
-    public close(): void {
+    public close(code?: number, reason?: string): void {
         if (this.closed) return;
         this.closed = true;
+        this.openHandlers.clear();
         this.messageHandlers.clear();
         this.errorHandlers.clear();
+        this.ws.removeEventListener('open', this.handleOpen);
         this.ws.removeEventListener('message', this.handleMessage);
         this.ws.removeEventListener('error', this.handleError);
         this.ws.removeEventListener('close', this.handleClose);
         try {
-            this.ws.close();
+            this.ws.close(code, reason);
         } catch {
             // ignore close errors; the adapter is already detached
         }
@@ -451,6 +466,10 @@ class FilteredNetwork implements NetworkSupportable {
         return this.source.ready?.() ?? Promise.resolve();
     }
 
+    public onOpen(handler: () => void): SocketUnsubscribe {
+        return this.source.onOpen?.(handler) ?? (() => undefined);
+    }
+
     public send(data: string): void {
         this.source.send(data);
     }
@@ -470,8 +489,8 @@ class FilteredNetwork implements NetworkSupportable {
         return this.source.onError(handler);
     }
 
-    public close(): void {
-        this.source.close();
+    public close(code?: number, reason?: string): void {
+        this.source.close(code, reason);
     }
 }
 
