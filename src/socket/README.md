@@ -100,6 +100,63 @@ Examples:
 - Browser WebSocket adapters should live outside `lib/socket` and depend only on browser APIs there.
 - Test/in-memory transports can use `createNetwork()` from this module.
 
+## Owned WebSocket Network
+
+`createOwnedWebSocketNetwork` is the ready-made `NetworkSupportable` adapter for services that need to own a real WebSocket. Unlike `BrowserWebSocketNetwork` (whose `close()` only detaches listeners), the owned adapter creates the socket and its `close()` performs an actual socket close.
+
+It handles only raw string send/receive, the open wait, error/close mapping, and the actual close. Message parsing, request/response matching, reconnect, and keep-alive stay in the consuming service.
+
+Connect once and exchange (the `ready()` model):
+
+```ts
+import { createOwnedWebSocketNetwork } from 'lemon-model';
+
+const net = createOwnedWebSocketNetwork({ url: 'wss://api/ws', connectTimeoutMs: 10000 });
+net.onMessage(raw => handle(raw));
+net.onError((err, ctx) => log(ctx.scope, err));
+
+await net.ready(); // waits for open; resolves immediately if already open
+net.send(JSON.stringify({ type: 'hello' }));
+net.close(1000, 'bye');
+```
+
+Drive your own lifecycle (the `onOpen` model — reconnect/keep-alive owned by you):
+
+```ts
+const net = createOwnedWebSocketNetwork({ url, connectTimeoutMs: 0 }); // own the timeout yourself
+net.onOpen(() => { state = 'connected'; });
+net.onError((event, ctx) => {
+    if (ctx.scope === 'ownedWebSocket.close') onClosed(event);
+    else onError(event);
+});
+net.onMessage(raw => dispatch(raw));
+```
+
+`ready()` and `onOpen()` are both latched: subscribing after the socket is already open still resolves/fires once, so a late subscriber never misses the open. Use `ready()` for a simple await-then-send flow, and `onOpen()` when synchronous state transitions or a close-before-open path matter.
+
+Inject a non-browser or custom socket via `socketFactory` (defaults to the global `WebSocket`):
+
+```ts
+import WS from 'ws';
+const net = createOwnedWebSocketNetwork({
+    url,
+    socketFactory: ({ url, protocols }) => new WS(url, protocols) as unknown as WebSocketClosable,
+});
+```
+
+Filter to only the raw messages you own with `createFilteredNetwork`. Both chatic and proxy share this single decorator instead of re-implementing ownership:
+
+```ts
+import { createFilteredNetwork } from 'lemon-model';
+
+const owned = createOwnedWebSocketNetwork({ url });
+const mine = createFilteredNetwork(owned, raw => raw.startsWith('myservice:'));
+mine.onMessage(raw => { /* only 'myservice:' frames arrive */ });
+mine.send('myservice:ping'); // send/close/onError/ready/onOpen delegate to the source unchanged
+```
+
+The predicate filters inbound `onMessage` only; outbound `send` is never filtered.
+
 ## Sending
 
 `post(message)` sends a message without waiting for a response.

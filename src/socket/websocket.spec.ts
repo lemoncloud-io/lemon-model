@@ -276,6 +276,15 @@ describe('OwnedWebSocketNetwork', () => {
         expect2(() => ws.closeCalls[0]).toEqual({ code: 1012, reason: 'service-restart' });
         expect2(() => network.readyState).toEqual('closed');
     });
+
+    it('should fire onOpen immediately when subscribing to an already-open socket', () => {
+        const ws = new FakeOwnedWebSocket(1);
+        const network = createOwnedWebSocketNetwork({ url: 'wss://x', socketFactory: () => ws });
+
+        let calls = 0;
+        network.onOpen(() => (calls += 1));
+        expect2(() => calls).toEqual(1); // latched: a late subscriber on an already-open socket is still notified once
+    });
 });
 
 describe('createFilteredNetwork', () => {
