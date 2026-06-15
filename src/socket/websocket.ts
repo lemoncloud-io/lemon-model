@@ -53,6 +53,22 @@ export interface WebSocketCompartible {
 /** preferred spelling; `WebSocketCompartible` remains for backward compatibility */
 export type WebSocketCompatible = WebSocketCompartible;
 
+/**
+ * `scope` values these WebSocket adapters put on `SocketErrorContext`.
+ *
+ * Consumers that branch on the scope (e.g. distinguishing a close from a real error) should import
+ * these instead of hardcoding the string, so the contract is compiler-checked across packages.
+ */
+export const WEBSOCKET_NETWORK_SCOPE = {
+    browser: 'browserWebSocket',
+    browserClose: 'browserWebSocket.close',
+    owned: 'ownedWebSocket',
+    ownedClose: 'ownedWebSocket.close',
+} as const;
+
+/** union of the `scope` strings emitted by the WebSocket network adapters */
+export type WebSocketNetworkScope = (typeof WEBSOCKET_NETWORK_SCOPE)[keyof typeof WEBSOCKET_NETWORK_SCOPE];
+
 /** options for the standard WebSocket connection-id handshake */
 export interface WebSocketConnectionIdOptions {
     /** message sent after socket open, usually `device.save` */
@@ -164,12 +180,13 @@ export class BrowserWebSocketNetwork implements NetworkSupportable {
     };
     private readonly handleError = (event: WebSocketCompartibleEventMap['error']) => {
         if (this.detached) return;
-        for (const handler of [...this.errorHandlers]) handler(event, { scope: 'browserWebSocket', network: this });
+        for (const handler of [...this.errorHandlers])
+            handler(event, { scope: WEBSOCKET_NETWORK_SCOPE.browser, network: this });
     };
     private readonly handleClose = (event: WebSocketCompartibleEventMap['close']) => {
         if (this.detached) return;
         for (const handler of [...this.errorHandlers])
-            handler(event, { scope: 'browserWebSocket.close', network: this });
+            handler(event, { scope: WEBSOCKET_NETWORK_SCOPE.browserClose, network: this });
     };
 
     public constructor(private readonly ws: WebSocketCompartible) {
@@ -316,11 +333,13 @@ export class OwnedWebSocketNetwork implements NetworkSupportable {
     };
     private readonly handleError = (event: WebSocketCompartibleEventMap['error']) => {
         if (this.closed) return;
-        for (const handler of [...this.errorHandlers]) handler(event, { scope: 'ownedWebSocket', network: this });
+        for (const handler of [...this.errorHandlers])
+            handler(event, { scope: WEBSOCKET_NETWORK_SCOPE.owned, network: this });
     };
     private readonly handleClose = (event: WebSocketCompartibleEventMap['close']) => {
         if (this.closed) return;
-        for (const handler of [...this.errorHandlers]) handler(event, { scope: 'ownedWebSocket.close', network: this });
+        for (const handler of [...this.errorHandlers])
+            handler(event, { scope: WEBSOCKET_NETWORK_SCOPE.ownedClose, network: this });
     };
 
     public constructor(options: OwnedWebSocketNetworkOptions) {
