@@ -328,6 +328,8 @@ export class OwnedWebSocketNetwork implements NetworkSupportable {
             ? options.socketFactory({ url: options.url, protocols: options.protocols })
             : createDefaultWebSocket(options);
         this.opened = this.buildOpened(options.connectTimeoutMs ?? 15_000);
+        /** swallow the orphan rejection for onOpen-only consumers; ready() callers still observe it (same promise) */
+        this.opened.catch(() => undefined);
         this.ws.addEventListener('open', this.handleOpen);
         this.ws.addEventListener('message', this.handleMessage);
         this.ws.addEventListener('error', this.handleError);
