@@ -14,10 +14,10 @@
 
 | 소비 모드 | 진입점 | 제공 기능 | 직접 구현 필요 | 적합 |
 |---|---|---|---|---|
-| A. 고수준 클라이언트 | 고수준 팩토리 (현재: chatic `createClientSocketV2`) | 재연결·keepalive·request·라우팅·sync | 없음 | 일반 앱 |
+| A. 고수준 클라이언트 | 고수준 클라이언트 패키지의 팩토리 | 재연결·keepalive·request·라우팅·sync | 없음 | 일반 앱 |
 | B. 저수준 raw | lemon-model `createOwnedWebSocketNetwork` | `onOpen/onMessage/onError/send/close` | 재연결·request 등 전부 | 커스텀 클라이언트 |
 
-대부분의 앱은 모드 A를 쓴다. 아래는 먼저 일반 코어(모드 B의 기반이자 모드 A의 하부)를 정의하고, 이어서 현재 고수준 클라이언트 바인딩을 다룬다.
+대부분의 앱은 모드 A를 쓴다. 이 문서는 일반 코어(모드 B의 기반이자 모드 A의 하부)를 정의한다. 고수준 클라이언트별 구체 사용법은 해당 클라이언트 패키지 문서를 참고한다.
 
 ---
 
@@ -27,7 +27,7 @@
 [앱 코드]
    │ 고수준 클라이언트 API (connect / send / request / onType ...)
    ▼
-[고수준 클라이언트]                       현재 구현: chatic client-socket-v2
+[고수준 클라이언트]                       예: chatic client-socket-v2
    │  재연결 · keep-alive · request/response · 타입 라우팅 · 도메인 sync
    │  NetworkSupportable 어댑터 사용
    ▼
@@ -114,63 +114,11 @@ net.onError((event, ctx) => {
 
 ---
 
-## 현재 고수준 클라이언트 바인딩 (chatic client-socket-v2)
+## 고수준 클라이언트 사용법
 
-아래는 현재 표준 고수준 클라이언트다. 다른 클라이언트로 교체되면 이 절만 바뀐다. 일반 코어 계약(위)은 그대로 유지된다.
+고수준 클라이언트(모드 A)의 구체 사용법 — 팩토리 호출, `socketFactory` 주입, 옵션 — 은 해당 클라이언트 패키지 문서에서 다룬다. 클라이언트마다 import 경로·기본값이 다르므로, 이 문서는 일반 코어 계약만 정의한다.
 
-### 기본 사용법 (브라우저)
-
-```ts
-import { createClientSocketV2 } from 'chatic-sockets-api/dist/client-socket-v2';
-// 사내 리포 내부(데모 등)에서는 소스 상대경로 사용: '../../src/client-socket-v2'
-
-const client = createClientSocketV2({
-    url: WS_URL, // wss://...
-    // socketFactory: 생략 → globalThis.WebSocket 사용
-    // keepAlive / reconnect: 생략 → default-on (heartbeat + 자동 재연결)
-});
-
-const offState = client.onState(({ prev, next }) => console.log('state', prev, '→', next));
-const offError = client.onError(({ error, phase }) => console.warn('socket error', phase, error));
-const offType = client.onType('chat.message', msg => render(msg));
-
-await client.connect();
-
-client.send('chat.send', { channelId, content }); // 단방향 전송
-const res = await client.request('channel.get', { channelId }); // 요청/응답
-
-// 정리 — SPA unmount 등 라이프사이클 종료 시 호출
-offState();
-offError();
-offType();
-client.destroy();
-```
-
-핵심:
-
-- `keepAlive`와 `reconnect`는 기본 활성(default-on)이다. `createClientSocketV2(...)` 호출만으로 침묵 끊김 감지와 자동 재연결이 동작한다. 비활성화하려면 `keepAlive: false` / `reconnect: false`를 명시한다.
-- 끊김 후 재연결은 클라이언트가 처리한다. 앱은 `onState`로 상태를 반영한다.
-- 종료 시 `destroy()`로 리스너/타이머/펜딩 요청/소켓을 정리한다.
-
-### socketFactory 주입
-
-전역 `WebSocket`이 없거나(React Native 등) 연결에 추가 옵션(인증 헤더·서브프로토콜·커스텀 WS)이 필요할 때만 주입한다. 반환 객체는 위 [raw 소켓 계약](#socketfactory가-반환하는-raw-소켓-계약-websocketclosable)을 만족해야 한다(chatic에서는 `SocketLike` 타입으로 노출).
-
-```ts
-import type { SocketFactoryContext, SocketLike } from 'chatic-sockets-api/dist/client-socket-v2';
-
-const client = createClientSocketV2({
-    url: WS_URL,
-    socketFactory: (ctx: SocketFactoryContext): SocketLike => new MyWebSocket(ctx.url, ctx.protocols),
-});
-```
-
-### 옵션 참고
-
-| 옵션 | 동작 |
-|---|---|
-| `connectTimeoutMs` | 이 클라이언트가 소유한다(재연결/백오프 정책). 코어 어댑터에는 0을 넘긴다. |
-| 끊김/에러 | 코어의 raw close/error는 `onState`(상태 전이)·`onError`(`phase: 'transport'` 등)로 정규화돼 전달된다. |
+- 현재 표준 클라이언트: chatic `client-socket-v2`. 사용법은 `chatic-sockets-api` 리포 `docs/frontend-client-socket/`(Client Transport)를 참고한다.
 
 ---
 
