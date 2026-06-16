@@ -285,6 +285,29 @@ describe('OwnedWebSocketNetwork', () => {
         network.onOpen(() => (calls += 1));
         expect2(() => calls).toEqual(1); // latched: a late subscriber on an already-open socket is still notified once
     });
+
+    it('should not leak an unhandled rejection in the onOpen-only model when the socket closes before open', async () => {
+        const rejections: any[] = [];
+        const onUnhandled = (reason: any) => rejections.push(reason);
+        process.on('unhandledRejection', onUnhandled);
+        try {
+            const ws = new FakeOwnedWebSocket(); // CONNECTING
+            const network = createOwnedWebSocketNetwork({
+                url: 'wss://x',
+                socketFactory: () => ws,
+                connectTimeoutMs: 0, // onOpen-driven lifecycle owns its own timeout (README "onOpen model")
+            });
+            // a consumer that drives lifecycle via onOpen and never awaits ready()
+            network.onOpen(() => undefined);
+            network.onError(() => undefined);
+
+            ws.emit('close', undefined); // close before open
+            await new Promise(resolve => setTimeout(resolve, 10)); // let Node surface any unhandled rejection
+            expect2(() => rejections.length).toEqual(0);
+        } finally {
+            process.removeListener('unhandledRejection', onUnhandled);
+        }
+    });
 });
 
 describe('createFilteredNetwork', () => {
