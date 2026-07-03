@@ -6,7 +6,7 @@
  */
 import { expect2, GETERR } from '../cores/index.spec';
 import { SocketMessage } from '../socket/types';
-import { createSocketClient } from './client';
+import { createSocketClient, createSocketClientIdentityProvider } from './client';
 import { createPeerBridge } from './testing';
 
 const wait = (ms = 20) => new Promise(resolve => setTimeout(resolve, ms));
@@ -32,6 +32,17 @@ describe('client', () => {
         expect2(await client.request('echo', { a: 1 })).toEqual({ ok: true, echo: { a: 1 } });
         expect2(await client.request('boom', null).catch(error => error)).toEqual({ code: 'BOOM' });
         expect2(() => client.pendingCount).toEqual(0);
+    });
+
+    it('should generate instance-unique mids per identity provider', async () => {
+        // two independent providers (e.g. two bundled runtimes on one socket) must never collide
+        const a = createSocketClientIdentityProvider();
+        const b = createSocketClientIdentityProvider();
+        expect2(() => a.nextMid() === b.nextMid()).toEqual(false);
+
+        // a custom prefix is honored and counts independently from other providers
+        const c = createSocketClientIdentityProvider('c1');
+        expect2(() => [c.nextMid(), c.nextMid()]).toEqual(['c1-1', 'c1-2']);
     });
 
     it('should reject on timeout (default and per-request override) and clear pending', async () => {

@@ -27,11 +27,16 @@ interface PendingRequest {
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
-let midNo = 0;
 
-/** default mid generator */
-export const defaultSocketClientIdentityProvider: SocketClientIdentityProvider = {
-    nextMid: () => `sync-${++midNo}`,
+/**
+ * create a mid generator with its own counter and an instance-unique prefix.
+ * without the unique prefix, two bundled copies of lemon-model sharing one socket would both
+ * count from `sync-1` and settle each other's pendings on mid collision.
+ */
+export const createSocketClientIdentityProvider = (prefix?: string): SocketClientIdentityProvider => {
+    let midNo = 0;
+    const midPrefix = prefix ?? `sync-${Math.random().toString(36).slice(2, 8)}`;
+    return { nextMid: () => `${midPrefix}-${++midNo}` };
 };
 
 /** create the L3 socket client runtime over a shared network */
@@ -58,7 +63,7 @@ class SocketClient implements SocketClientSupportable {
         this.network = options?.filter ? createFilteredNetwork(source, options.filter) : source;
         this.timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
         this.maxPending = options?.maxPending;
-        this.identity = options?.identity ?? defaultSocketClientIdentityProvider;
+        this.identity = options?.identity ?? createSocketClientIdentityProvider();
         this.unsubscribeNetworkMessage = this.network.onMessage(raw => this.receive(raw));
         this.unsubscribeNetworkError = this.network.onError((error, context) => this.emitError(error, context));
     }

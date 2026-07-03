@@ -22,6 +22,16 @@ import {
 } from 'lemon-model';
 ```
 
+## 0. 서버가 지켜야 할 최소 계약
+
+wire의 나머지는 전부 자유지만(type 작명, data 내부 구조), 이 세 가지만은 표준이다.
+
+1. 봉투는 JSON `{ type: string, data, mid }` — 클라이언트가 요청을 이 모양으로 보낸다.
+2. 응답은 `type: 'result'` 또는 `'error'` + 요청과 같은 `mid` — 요청-응답 매칭을 L3가 하기 때문.
+3. 동기화 모델에는 `id`와 `updatedAt`(모델별 단조 증가)을 싣는다. 삭제는 `deletedAt`으로 — 이벤트뿐 아니라 **pull 응답(변경 피드)에도 soft-delete된 모델을 포함**해야 삭제가 전파된다.
+
+이 계약을 못 지키는 레거시 서버(chatic의 `:ok`/`:error` suffix, top-level `domain` 필드 등)는 어댑터가 아니라 network 단 translator decorator로 번역해 붙인다 — [04-roadmap](./04-roadmap.md) 참고.
+
 ## 1. 도메인 모델 정의
 
 ```ts

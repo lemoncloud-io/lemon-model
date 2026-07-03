@@ -120,6 +120,9 @@ export interface SocketClientSupportable {
 }
 
 export const createSocketClient: (network: NetworkSupportable, options?: SocketClientOptions) => SocketClientSupportable;
+
+/** 기본 mid 생성기 팩토리 — 인스턴스 고유 접두사 + 자체 카운터 (전역 상태 없음) */
+export const createSocketClientIdentityProvider: (prefix?: string) => SocketClientIdentityProvider;
 ```
 
 설계 근거:
