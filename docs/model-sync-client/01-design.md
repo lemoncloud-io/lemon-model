@@ -1,6 +1,6 @@
 # Model Sync Client Design
 
-문서 순서: [00-requirement](./00-requirement.md) → `01-design.md`
+문서 순서: [00-requirement](./00-requirement.md) → `01-design.md` → [02-plan](./02-plan.md)
 
 이 문서는 범용 모델 동기화 클라이언트의 확정 모델링, 레이어별 책임, public interface, 동기화 의미론, 검증 시나리오를 정의한다. 요구사항은 앞선 문서를 기준으로 한다. 이 문서는 설계만 다루며 구현 코드는 포함하지 않는다.
 
@@ -70,7 +70,7 @@ export interface SocketMessage<Data = any> {
 - 요청: `{ type, data, mid }` — type은 어댑터/서비스가 정한다(예: `sync/user:pull`).
 - 정상 응답: `{ type: 'result', data, mid: 요청과 동일 }` → 해당 pending을 resolve한다.
 - 오류 응답: `{ type: 'error', data, mid: 요청과 동일 }` → 해당 pending을 reject한다.
-- 서버 발신 이벤트: mid가 pending에 없는 메시지 → 라우팅으로 전달한다.
+- 서버 발신 이벤트: mid가 pending에 없고 type이 `result`/`error`가 아닌 메시지 → 라우팅으로 전달한다. 매칭 상대 없는 `result`/`error`는 늦은 응답으로 보고 폐기한다.
 
 이 봉투 형식과 settle 규칙은 기존 `Peer` simulator의 dispatch가 소비하는 형식과 같다(`result`/`error` + mid 매칭). 단, `Peer` 링크는 단방향 Network 2개(uplink/downlink)로 구성되고 `peer.network`는 uplink만 노출하므로, L3를 Peer에 직접 물릴 수는 없다. 검증은 `src/sync/testing.ts`의 브리지(아래 검증 시나리오 참고)로 Peer를 `NetworkSupportable` 하나로 감싸서 수행한다. 또한 `Peer`는 `error` 봉투를 스스로 만들지 않으므로, 오류 응답은 서버 대역 핸들러가 `post({ type: 'error', data, mid }, { clientId })`로 직접 생성한다.
 
@@ -111,9 +111,9 @@ export interface SocketClientSupportable {
     post<T = any>(type: string, data: T): void;
     /** 특정 type의 이벤트 구독 */
     onType<T = any>(type: string, handler: (data: T, message: SocketMessage<T>) => void): SocketUnsubscribe;
-    /** pending과 매칭되지 않은 모든 수신 envelope 구독 */
+    /** pending과 매칭되지 않은 수신 envelope 구독. 단 매칭 상대 없는 result/error는 늦은 응답으로 보고 조용히 폐기한다 */
     onMessage(handler: (message: SocketMessage) => void): SocketUnsubscribe;
-    /** 비동기 오류 관찰 (timeout, parse 실패, network 오류) */
+    /** 비동기 오류 관찰 (timeout, 발신 실패, network 오류) */
     onError(handler: SocketErrorHandler): SocketUnsubscribe;
     /** pending 전부 reject + listener detach. network는 close하지 않는다(소켓 공유) */
     close(): void;
@@ -132,8 +132,18 @@ export const createSocketClient: (network: NetworkSupportable, options?: SocketC
 ## Public Interfaces — L4 Sync Machine
 
 ```ts
+/**
+ * 동기화 대상의 최소 계약 — 머신이 읽는 필드는 이 셋뿐이다.
+ * CoreModel은 자동 충족하며, id/updatedAt을 갖춘 외부 모델도 대상이 된다.
+ */
+export interface SyncTarget {
+    id?: string;
+    updatedAt?: number;
+    deletedAt?: number;
+}
+
 /** 변경 통지 */
-export interface SyncChangeEvent<M extends CoreModel> {
+export interface SyncChangeEvent<M extends SyncTarget> {
     /** 변경 원인 */
     cause: 'pull' | 'event';
     /** 이번에 바뀐(반영·제거된) 모델들 */
@@ -141,7 +151,7 @@ export interface SyncChangeEvent<M extends CoreModel> {
 }
 
 /** pull 응답에서 추출한 서버 확정 페이지 */
-export interface SyncReplyPage<M extends CoreModel> {
+export interface SyncReplyPage<M extends SyncTarget> {
     /** 서버 확정 모델들 */
     models: M[];
     /** 다음 페이지 커서. 없으면 pull 종료 */
@@ -152,7 +162,7 @@ export interface SyncReplyPage<M extends CoreModel> {
  * 프로토콜 어댑터 — 서비스가 주입한다.
  * 머신은 wire 규약을 모르고, 어댑터는 로컬 상태를 모른다.
  */
-export interface SyncProtocolAdapter<M extends CoreModel> {
+export interface SyncProtocolAdapter<M extends SyncTarget> {
     /** since(updatedAt 워터마크)와 커서로 pull 요청 구성. since 미지정은 전체 */
     buildPull(since?: number, cursor?: any): { type: string; data: any };
     /** pull 응답 data에서 서버 확정 모델과 다음 커서 추출 */
@@ -161,14 +171,14 @@ export interface SyncProtocolAdapter<M extends CoreModel> {
     parseEvent(message: SocketMessage): M[] | undefined;
 }
 
-export interface ModelSyncOptions<M extends CoreModel> {
+export interface ModelSyncOptions<M extends SyncTarget> {
     adapter: SyncProtocolAdapter<M>;
     /** register 직후 초기 pull 수행 여부 (기본 true). 실패해도 register는 유효하며 다음 pull/tick이 처음부터 다시 당긴다. 실패 관찰이 필요하면 false로 두고 직접 pull()을 호출한다 */
     initialPull?: boolean;
 }
 
 /** 타입 1개에 대한 동기화 핸들 */
-export interface ModelSyncSupportable<M extends CoreModel> {
+export interface ModelSyncSupportable<M extends SyncTarget> {
     readonly type: string;
     /** 로컬 상태 조회 (읽기 전용 뷰) */
     get(id: string): M | undefined;
@@ -183,7 +193,7 @@ export interface ModelSyncSupportable<M extends CoreModel> {
 
 export interface SyncMachineSupportable {
     /** 도메인 모델 타입 등록. 같은 type 재등록은 기존 핸들을 반환하고 새 options는 무시한다 */
-    register<M extends CoreModel>(type: string, options: ModelSyncOptions<M>): ModelSyncSupportable<M>;
+    register<M extends SyncTarget>(type: string, options: ModelSyncOptions<M>): ModelSyncSupportable<M>;
     /** 등록된 모든 타입 pull 1회. 서비스가 원하는 주기로 호출한다. 이미 pull이 진행 중인 타입은 중첩 실행하지 않고 스킵한다 */
     tick(): Promise<void>;
     /** 전체 해제 */
@@ -209,7 +219,7 @@ export const createSyncMachine: (client: SocketClientSupportable) => SyncMachine
 | --- | --- |
 | 로컬에 없는 모델 수신 | 반영한다(신규 추가). 단 deletedAt이 있으면 무시한다(이미 없는 것의 삭제) |
 | pull/event로 수신한 모델 | `incoming.updatedAt > local.updatedAt`이면 반영, 아니면 무시 |
-| pull 워터마크 | 타입별 저장식 단조 증가 값. 수신 모델을 반영할 때만 `max(현재 워터마크, incoming.updatedAt)`로 전진하고, 어떤 경우에도 후진하지 않는다 |
+| pull 워터마크 | 타입별 저장식 단조 증가 값. **pull로 반영한 모델만** `max(현재 워터마크, incoming.updatedAt)`로 전진시키고, 어떤 경우에도 후진하지 않는다. 이벤트 반영은 워터마크를 전진시키지 않는다 — 이벤트가 워터마크를 끌어올리면, 유실된 이벤트의 모델을 pull이 영영 건너뛰어 안전망이 뚫린다 |
 | 수신 모델에 updatedAt 없음 | 반영하지 않고 무시한다 |
 | 로컬 모델에 updatedAt 없음 | stale로 취급하여 서버 수신본으로 덮는다 |
 | 수신 모델에 deletedAt 있음 | 최신 판정을 통과하면 스토어에서 제거하고 변경 통지에 포함한다 |
@@ -224,7 +234,7 @@ export const createSyncMachine: (client: SocketClientSupportable) => SyncMachine
 - 하나의 `NetworkSupportable` 위에서 sync runtime, `JSONTransport` receiver, progress consumer(`src/buffer`의 `GenAIStreamEvent` 소비자)가 각자 `createFilteredNetwork`로 갈라 받는다. sync envelope과 `json:*` packet은 type 체계가 겹치지 않는다.
 - 발신 envelope 크기는 network의 `maxPacketBytes`(기본 64kb — `DEFAULT_MAX_PACKET_BYTES`, `configure()`로 설정) 안에 들어야 한다. 단 크기 강제 주체는 network 구현에 따라 다르다: in-memory `Network`는 초과 시 `send()`가 동기 throw하고, 브라우저 계열 어댑터는 `configure()`가 no-op이라 강제하지 않으므로 실서비스 제한은 서버/인프라 정책이다. L3는 send throw를 request reject로 변환한다(위 L3 설계 근거 참고).
 - 큰 변경분 pull은 어댑터의 커서 페이지네이션(`buildPull(since, cursor)` / `parseReply().next` 루프)으로 대응하고, envelope 자체의 chunking은 1차 범위가 아니다.
-- 이벤트 type 이름은 서비스 네임스페이스를 권장한다(예: `sync/user:*`). runtime `filter`를 이 prefix 검사로 주면 raw 단계에서 저렴하게 거를 수 있다.
+- 이벤트 type 이름은 서비스 네임스페이스를 권장한다(예: `sync/user:*`). runtime `filter`는 이 prefix 검사에 **`result`/`error` type을 반드시 포함**해야 한다 — 응답 봉투의 type은 네임스페이스가 아니라 `result`/`error`라서, prefix만 통과시키면 모든 request가 응답을 못 받고 timeout된다. 여러 runtime이 같은 소켓에서 `result`를 모두 수신해도 mid 매칭으로 자기 것만 settle하고 나머지는 조용히 버리므로 안전하다.
 
 ## 파일 구조와 export
 
@@ -242,7 +252,7 @@ src/sync/
 - 루트 `src/index.ts`에 `export * from './sync';`를 추가한다. socket/genai/buffer와 같은 정책이다.
 - 기존 socket export는 건드리지 않는다. 변경은 전부 additive다.
 - simulator 격리 정책(`socket/testing`)은 그대로 유지하고, sync spec은 그 entry의 `Peer`를 사용한다.
-- `sync/testing.ts`의 브리지는 `Peer`(단방향 링크 2개)를 L3가 요구하는 양방향 `NetworkSupportable` 하나로 감싼다: `send(raw)`는 parse 후 `clientPeer.post(message)`로, 수신은 `clientPeer.onMessage`를 raw 문자열로 되돌려 전달한다. `socket/testing`과 같은 격리 정책으로 production 번들에 포함하지 않는다.
+- `sync/testing.ts`의 브리지는 `Peer`(단방향 링크 2개)를 L3가 요구하는 양방향 `NetworkSupportable` 하나로 감싼다: `send(raw)`는 uplink(`client.network`)에 raw 그대로 발신하고, 수신은 커스텀 `networkFactory`로 캡처한 downlink `Network`에 직접 구독한다. 클라이언트 쪽 `Peer.post()`/`Peer.onMessage()`는 쓰지 않는다 — `Peer.dispatch`는 리스너가 있으면 반환값이 없어도 자동 `result` reply를 만들기 때문에, 클라이언트 Peer에 리스너를 달면 서버와 빈 result가 무한 왕복한다. 서버 대역 `Peer`는 평범하게 `onMessage()`/`post()`를 쓴다. `socket/testing`과 같은 격리 정책으로 production 번들에 포함하지 않는다.
 
 ## 시퀀스
 
@@ -327,3 +337,5 @@ chatic의 범용화 장벽 4가지가 이 설계에서 해소되는 방식:
 - 인증 게이트: chatic의 auth-controller/`requiresAuth` 같은 인증 상태 연동은 1차 제외. 인증은 network 생성 시(연결 URL/토큰) 서비스가 해결하고, 인증 후에만 `register()`/`tick()`을 시작하는 것도 서비스 소관이다.
 - envelope 레벨 chunking: 큰 payload는 어댑터 페이지네이션 또는 기존 `JSONTransport` 병행 사용으로 대응한다.
 - 쓰기 동기화: 로컬 변경을 서버로 push하는 경로는 범위 밖이다. 필요해지면 어댑터에 push 메서드와 잠정 상태 의미론을 additive로 더하는 후속 설계로 다룬다. 읽기 전용 v1의 스토어·판정 규칙은 그대로 재사용된다.
+- 순서 스트림: `GenAIStreamChunkEvent` 같은 seq 순서 append 스트림은 동기화 대상이 아니다 — 머신의 스토어는 id별 최신본 수렴(LWW)이라 청크를 넣으면 마지막 1개만 남는다. 스트림 자체는 `src/buffer`가 담당하고, 스트림에서 파생된 상태 모델(예: `id=streamId, updatedAt`을 갖는 진행 상태)은 `SyncTarget`으로서 지금 구조로 동기화된다.
+- updatedAt이 아닌 판정(seq 등)의 주입(comparator): 실수요가 생기면 후속으로 연다. 판정 주입은 워터마크 의미도 대상별로 달라져 확장 폭이 크다.
