@@ -5,6 +5,7 @@
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */
 import { expect2, GETERR } from '../cores/index.spec';
+import { createTranslatedNetwork, WireTranslator } from '../socket/decorators';
 import { SocketMessage } from '../socket/types';
 import { createSocketClient, createSocketClientIdentityProvider } from './client';
 import { createPeerBridge } from './testing';
@@ -186,6 +187,25 @@ describe('client', () => {
 
         expect2(() => messages).toEqual([]);
         expect2(() => errors).toEqual([]);
+    });
+
+    it('should settle requests over a translated legacy wire (composition: translated -> L3)', async () => {
+        const { network, server, clientId } = createPeerBridge();
+        server.onMessage((message: SocketMessage) => {
+            server.post({ type: `${message.type}:ok`, data: { ok: true }, mid: message.mid }, { clientId });
+            //! throwing keeps the manual legacy-suffix post the only reply (no auto `result` from Peer.dispatch).
+            throw new Error(`@type[${message.type}] replied manually - test.server`);
+        });
+        const legacyCodec: WireTranslator = {
+            inbound: raw => {
+                const parsed = JSON.parse(raw);
+                if (`${parsed?.type ?? ''}`.endsWith(':ok')) return JSON.stringify({ ...parsed, type: 'result' });
+                return raw;
+            },
+        };
+        const client = createSocketClient(createTranslatedNetwork(network, legacyCodec));
+
+        expect2(await client.request('x.y', null)).toEqual({ ok: true });
     });
 
     it('should reject all pending and detach listeners on close() without closing the network', async () => {
