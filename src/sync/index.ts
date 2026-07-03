@@ -7,6 +7,7 @@
 export * from './types';
 export * from './client';
 export * from './machine';
+export * from './ticker';
 
 //! NOTE: the `Peer` test bridge (`./testing`) is intentionally NOT re-exported here.
 //! It is a test-only utility — import it via `lemon-model/sync/testing`-style relative paths
