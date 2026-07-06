@@ -1,6 +1,6 @@
 # LogTrace SPEC
 
-> Status: Draft (SSOT) / Date: 2026-07-03 / Slug: logtrace
+> Status: Draft (SSOT) / Date: 2026-07-05 / Slug: logtrace
 
 # 한줄 목표
 
@@ -30,10 +30,10 @@ flowchart LR
 
 # 시나리오
 
-기준은 eureka 서버 배포 플로우다. 이 흐름에서 서버 로그를 클라이언트에 실시간으로 보여주는 것이 목표다.
+서버 로그를 클라이언트에 실시간으로 보여주는 것이 목표
 
-1. `eureka-flows-api`가 서버 배포 그래프를 실행한다.
-2. `UploadHtmlProcessor`가 `codes-goods-api`의 upload-html process를 호출한다.
+1. 서버 업로드 flow를 실행한다.
+2. `UploadHtmlProcessor`가 `codes-goods-api`의 doPostUpload를 호출
 3. 이때 `streamTo`, `streamFlowId`, `streamNodeId`, `streamRunId`가 downstream으로 전달된다.
 4. `codes-goods-api`는 autoDeploy 중 `github → refactor/build-step → build → deploy` 순서로 상태를 전이한다.
 5. 각 스텝 전이와 오류 지점에서 서비스가 로그를 남긴다.
@@ -69,10 +69,8 @@ flowchart LR
 | 상황 | 호출 또는 처리 | 결과 |
 | --- | --- | --- |
 | WebSocket 메시지 수신 | parse → `minLevel` 필터 → ring buffer 적재 | 구독자에게 `LogTraceEntry`를 한 건씩 통지한다. 배치 내부 순서는 유지한다. |
-| 로그 조회 | `list(query)` | `LogTraceEntry[]`를 `seq` 오름차순으로 반환한다. |
-| 유실 의심 조회 | `gapCount` | `seq` 간극으로 의심되는 유실 횟수를 반환한다. |
-
-SDD(Spec-Driven Development): 이 계약이 SSOT다. 구현 중 계약을 바꿔야 하면 코드가 아니라 이 문서 수정을 먼저 제안한다(model-sync-client 02-plan과 같은 원칙). 각 단계는 spec 작성 → 구현 → 게이트 통과 순서로 진행한다.
+| 로그 조회 | `list(query)` | `LogTraceEntry[]`를 `(ts, seq)` 오름차순으로 반환한다. |
+| 유실 의심 조회 | `gapCount` | source별 최대 seq 대비 수신 건수 차로 계수한 wire 유실 수를 반환한다. |
 
 # 설계
 
@@ -88,14 +86,13 @@ SDD(Spec-Driven Development): 이 계약이 SSOT다. 구현 중 계약을 바꿔
 | 메모리 | consumer는 ring buffer(기본 1,000개)로 상한. 로그 폭주가 브라우저 메모리를 못 뚫는다 |
 | timer | reporter의 flush timer는 lazy(첫 로그에 시작, flush에 정지). `close()`가 flush + 해제 — lambda invocation 종료 전 필수 호출 |
 | 의존 방향 | `logtrace → socket` 단방향. `src/socket`은 `src/logtrace`를 모른다 |
-
-## 디자인 패턴과 근거
+| 보안 경계 | reporter는 로그 내용을 스크럽하지 않는다. 서버 내부 로그(스택 트레이스, `json`의 도메인 값)가 브라우저 클라이언트로 그대로 나가는 데이터 노출면이므로, `streamTo` 발급 = 열람 권한 부여이며 민감정보 필터링은 서비스 소관이다 |
 
 - **Ports & Adapters (sink 주입)**: Progress와 동일. reporter는 `LogTraceSink = (message: SocketMessage) => void` 하나만 알고, 발신 경로(API GW post / Peer / 테스트 캡처)는 서비스가 배선한다.
 - **Batching + Strategy**: flush 조건을 개수(`flushCount`)·시간(`flushIntervalMs`)·크기(`maxBatchBytes`) 3개의 독립 축으로 두고 먼저 도달하는 축이 flush를 발화한다. `GenAIStreamBuffer`의 hybrid flush 전략과 같은 계열이되, 로그는 순서 있는 텍스트 스트림이 아니라 독립 엔트리 집합이므로 청크 재조립 없이 단순하다.
 - **Observer**: 구독은 기존 컨벤션대로 `SocketUnsubscribe` 반환.
 - **Ring Buffer**: 소비자 보관은 고정 상한 원형 버퍼. 로그의 가치는 최근성에 있으므로 오래된 것부터 밀려나는 것이 올바른 기본값이다.
-- **Level Gate (양단 필터)**: reporter의 `minLevel`은 wire 비용을 줄이고(발신 자체를 안 함), consumer의 `minLevel`은 표시를 줄인다. 같은 옵션이 양단에 있는 것은 중복이 아니라 관심사가 다르다 — 전자는 대역폭, 후자는 UX.
+- **Level Gate (양단 필터)**: reporter의 `minLevel`은 wire 비용을 줄이고(발신 자체를 안 함), consumer의 `minLevel`은 표시를 줄인다. 같은 옵션이 양단에 있는 것은 중복이 아니라 관심사가 다르다 — 전자는 대역폭, 후자는 UX. **seq는 reporter의 minLevel 게이트를 통과한 엔트리에만 발급**하고, consumer의 유실 판정은 자기 minLevel 게이트 **앞에서** 수행한다 — 양쪽 게이트가 seq 간극을 만들지 않으므로 gapCount가 순수 wire 유실 지표가 된다.
 
 ## Wire 규약
 
@@ -107,14 +104,15 @@ SDD(Spec-Driven Development): 이 계약이 SSOT다. 구현 중 계약을 바꿔
 interface LogTraceBatch {
     /** 배치 내 엔트리 (reporter 발생 순서) */
     entries: LogTraceEntry[];
-    /** 발신 주체 식별 (invocation id 등, 선택) */
-    source?: string;
+    /** 발신 주체 식별 — reporter 단위 고유 (필수). consumer의 dedup/유실 판정 키 */
+    source: string;
 }
 ```
 
 - `mid`는 reporter가 단조 카운터로 채운다(`l1`, `l2`, ...).
 - raw filter는 `'"type":"log:'` 부분 문자열 검사로 parse 없이 판정한다(2단 필터의 raw 단계).
-- 배치 간 도착 순서는 보장되지 않는다(unordered). 배치 내부 순서는 배열이 보존한다. 전역 순서는 엔트리의 `seq`로 소비자가 정렬한다.
+- 배치 간 도착 순서는 보장되지 않는다(unordered). 배치 내부 순서는 배열이 보존한다. 전역 순서는 `(ts, seq)`로 소비자가 정렬한다 — `seq`는 source 내에서만 단조이므로 source 간 비교 키가 아니다.
+- **`source`는 필수다.** 기준 시나리오처럼 여러 실행 박스(eureka-flows-api, codes-goods-api)가 같은 `streamTo` 소켓으로 발신하면 reporter마다 seq가 1부터 시작해 충돌한다. consumer는 dedup·유실 계수를 source별로 관리해 이 충돌을 흡수한다.
 
 ## Public Interface
 
@@ -132,19 +130,21 @@ export interface LogTraceEntry {
     message: string;
     /** 구조화 부가 데이터 (선택) */
     json?: Record<string, any>;
-    /** reporter 단조 증가 시퀀스 — 전역 정렬·유실 관찰용 */
+    /** source 내 단조 증가 시퀀스 — 정렬·유실 관찰용. minLevel 게이트 통과분에만 발급 */
     seq: number;
-    /** json이 크기 제한으로 제거되었으면 true */
+    /** 발신 주체 — wire에서는 배치에만 실리고, consumer가 적재 시 배치의 source를 채운다 */
+    source?: string;
+    /** 크기 제한으로 json 제거 또는 message 절단이 일어났으면 true */
     truncated?: boolean;
 }
 
-/** 서버 발신 경로 주입 (Ports & Adapters) */
-export type LogTraceSink = (message: SocketMessage<LogTraceBatch>) => void;
+/** 서버 발신 경로 주입 (Ports & Adapters). 반환 Promise의 reject는 onError로 배선된다 */
+export type LogTraceSink = (message: SocketMessage<LogTraceBatch>) => void | Promise<void>;
 
 export interface LogTraceReporterOptions {
     /** 봉투 type (기본 'log:trace') */
     type?: string;
-    /** 발신 주체 식별 — 배치의 source로 실린다 (선택) */
+    /** 발신 주체 식별 — 배치의 source로 실린다. 미지정 시 랜덤 id 자동 생성 (invocation id 지정 권장) */
     source?: string;
     /** 이 level 미만은 발신하지 않는다 (기본 'debug' = 전부) */
     minLevel?: LogTraceLevel;
@@ -196,9 +196,9 @@ export interface LogTraceConsumerOptions {
 export interface LogTraceConsumerSupportable {
     /** 엔트리 수신 구독 — 배치를 풀어 엔트리 단위로, 배치 내 순서대로 통지 */
     onEntry(handler: (entry: LogTraceEntry) => void): SocketUnsubscribe;
-    /** 보관 중인 엔트리 조회 — seq 오름차순 정렬 반환 */
+    /** 보관 중인 엔트리 조회 — (ts, seq) 오름차순 정렬 반환 */
     list(query?: LogTraceQuery): LogTraceEntry[];
-    /** 관찰된 seq 간극 수 (유실 힌트, 정확한 카운트 아님) */
+    /** 관찰된 wire 유실 수 — source별 (최대 seq − 수신 건수)의 합. 도착 순서와 무관하게 정확 */
     readonly gapCount: number;
     /** 보관분 비우기 (구독은 유지) */
     clear(): void;
@@ -220,18 +220,18 @@ export const createLogTraceConsumer: (network: NetworkSupportable, options?: Log
 | `maxBatchBytes` 도달 예상 | 새 엔트리를 넣으면 예산 초과일 때, 기존 버퍼를 먼저 flush하고 새 엔트리로 새 배치 시작 |
 | `error` level 기록 | 즉시 flush — 오류는 지연 없이 도착해야 한다 |
 | `flush()` / `close()` | 명시 flush. close는 이후 log 무시 + timer 해제 |
-| 단일 엔트리가 예산 초과 | `json` 제거, `truncated: true` 표시 후 발신. message까지 초과하면 message를 예산 내로 절단 |
-| sink throw | `onError`로 알리고 해당 배치는 버린다(at-most-once). 실행 코드를 절대 중단시키지 않는다 |
+| 단일 엔트리가 예산 초과 | `json` 제거, `truncated: true` 표시 후 발신. message까지 초과하면 message를 예산 내로 절단하고 역시 `truncated: true` |
+| sink throw / reject | `onError`로 알리고 해당 배치는 버린다(at-most-once). sink가 Promise를 반환하면 reject도 `onError`로 배선한다(unhandled rejection 금지). 실행 코드를 절대 중단시키지 않는다 |
 
 ### 수신 규칙 (consumer)
 
 | 상황 | 규칙 |
 | --- | --- |
-| 배치 수신 | 엔트리로 풀어 `minLevel` 게이트 통과분만 ring buffer에 추가 + `onEntry` 통지 (배치 내 순서 유지) |
-| ring buffer 초과 | 가장 오래된(작은 seq) 엔트리부터 제거 |
-| `list()` | seq 오름차순 정렬 반환 — 배치 간 unordered 도착을 조회 시점에 보정 |
-| seq 간극 관찰 | 이미 본 최대 seq보다 2 이상 큰 seq 도착 시 `gapCount` 증가. minLevel 게이트로 인한 간극과 유실을 구분할 수 없으므로 "힌트"로만 취급 |
-| 중복 seq | 동일 seq 재도착은 무시 (이론상 발생하지 않으나 방어) |
+| 배치 수신 | source별 dedup·유실 계수를 **minLevel 게이트 앞에서** 반영한 뒤, 게이트 통과분만 source를 채워 ring buffer에 추가 + `onEntry` 통지 (배치 내 순서 유지) |
+| ring buffer 초과 | 가장 오래된((ts, seq)가 작은) 엔트리부터 제거 |
+| `list()` | (ts, seq) 오름차순 정렬 반환 — 배치 간 unordered 도착과 다중 source를 조회 시점에 보정 |
+| 유실 계수 | source별로 최대 seq와 수신 건수를 추적하고 `gapCount = Σ(maxSeq − 수신 건수)`. seq가 1부터 단조 발급되므로 도착 순서와 무관하게 wire 유실만 계수한다 |
+| 중복 seq | 같은 source의 동일 seq 재도착은 무시 (이론상 발생하지 않으나 방어) |
 
 ### Progress와의 경계
 
@@ -302,25 +302,26 @@ export interface LogTraceLoopMetrics {
     delivered: number;
     truncated: number;
     gapCount: number;
-    /** 종료 시점의 consumer 보관분 (seq 정렬) */
+    /** 종료 시점의 consumer 보관분 ((ts, seq) 정렬) */
     finalEntries: LogTraceEntry[];
 }
 
 export const runLogTraceLoop: (options: LogTraceLoopOptions) => Promise<LogTraceLoopMetrics>;
 ```
 
-시나리오 spec은 이 하니스로 "100건 기록에 batches ≤ 5 (flushCount 20)", "maxPacketBytes 관측치 ≤ 제한", "unordered에서도 finalEntries가 seq 오름차순" 같은 수치 단언을 쓴다.
+시나리오 spec은 이 하니스로 "100건 기록에 batches ≤ 5 (flushCount 20)", "maxPacketBytes 관측치 ≤ 제한", "unordered에서도 finalEntries가 (ts, seq) 오름차순" 같은 수치 단언을 쓴다.
 
 ### 시나리오
 
 1. **e2e**: debug/info/warn/error 혼합 기록 → 배치 발신 → 클라이언트 onEntry 통지·list() 정렬 반환.
 2. **배칭 3축**: flushCount 도달 flush, flushIntervalMs 경과 flush, maxBatchBytes 초과 직전 분할 flush가 각각 독립으로 동작. error level 즉시 flush 확인.
 3. **크기 제한**: 단일 대형 엔트리의 json 제거 + truncated 표시, message 절단, onError 관찰.
-4. **unordered 정렬**: `configureNetwork({ unordered: true })` 하에 배치가 뒤섞여 도착해도 list()가 seq 순으로 반환. seq 간극 시 gapCount 증가.
-5. **level gate**: reporter minLevel이 발신 자체를 막고, consumer minLevel이 보관/통지를 막음 — 양단 독립 확인.
+4. **unordered 정렬**: `configureNetwork({ unordered: true })` 하에 배치가 뒤섞여 도착해도 list()가 (ts, seq) 순으로 반환. 유실 시 gapCount가 정확히 계수되고, 늦게 도착한 배치가 gapCount를 부풀리지 않음.
+5. **level gate**: reporter minLevel이 발신 자체를 막고(seq 미발급 — 간극 없음), consumer minLevel이 보관/통지를 막되 유실 계수는 오염시키지 않음 — 양단 독립 확인.
 6. **ring buffer**: maxEntries 초과 시 오래된 엔트리 제거, clear() 후 빈 상태.
 7. **공존**: 한 network 위에 logtrace consumer + progress consumer + `JSONTransport` receiver + sync envelope 트래픽을 함께 올려 상호 오수신 없음.
 8. **자원 해제**: reporter.close()가 잔여 버퍼 flush + timer 해제 + 이후 log 무시, consumer.close()가 수신 중단·network 미폐쇄.
+9. **다중 소스**: source가 다른 reporter 2개가 한 consumer로 발신 — seq 충돌 없이 전량 보관(dedup 오작동 없음), list()가 (ts, seq)로 인터리브, gapCount는 source별 독립 계수.
 
 ### 실환경 진단 (후속)
 

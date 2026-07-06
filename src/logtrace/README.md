@@ -76,7 +76,7 @@ trace.onEntry(entry => {
 });
 
 trace.list({ minLevel: 'warn', limit: 50 });  // 최근 warn 이상 50건 (seq 정렬)
-trace.gapCount;                                // 유실 의심 횟수 (힌트)
+trace.gapCount;                                // 관찰된 wire 유실 수 (source별 계수)
 trace.clear();                                 // 화면 지우기
 trace.close();                                 // 구독 해제 (소켓은 닫지 않음)
 ```
@@ -120,8 +120,9 @@ sequenceDiagram
 | `ts` | `number` | 발생 시각 (epoch ms) |
 | `message` | `string` | 사람이 읽는 메시지 |
 | `json` | `object?` | 구조화 부가 데이터 |
-| `seq` | `number` | 단조 시퀀스 — 정렬·유실 힌트용 (직접 쓸 일 없음) |
-| `truncated` | `boolean?` | json이 크기 제한으로 제거됐으면 true |
+| `seq` | `number` | source 내 단조 시퀀스 — 정렬·유실 계수용 (직접 쓸 일 없음) |
+| `source` | `string?` | 발신 주체 (reporter 단위) — consumer가 적재 시 채움 |
+| `truncated` | `boolean?` | 크기 제한으로 json 제거 또는 message 절단이 일어났으면 true |
 
 ## Progress와 뭐가 다른가요?
 
