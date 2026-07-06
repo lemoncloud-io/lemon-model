@@ -67,7 +67,7 @@ export const WEBSOCKET_NETWORK_SCOPE = {
 } as const;
 
 /** union of the `scope` strings emitted by the WebSocket network adapters */
-export type WebSocketNetworkScope = (typeof WEBSOCKET_NETWORK_SCOPE)[keyof typeof WEBSOCKET_NETWORK_SCOPE];
+export type WebSocketNetworkScope = typeof WEBSOCKET_NETWORK_SCOPE[keyof typeof WEBSOCKET_NETWORK_SCOPE];
 
 /** options for the standard WebSocket connection-id handshake */
 export interface WebSocketConnectionIdOptions {

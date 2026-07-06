@@ -24,11 +24,23 @@
       "require": "./dist/buffer/testing.js",
       "default": "./dist/buffer/testing.js"
     },
+    "./progress/testing": {
+      "types": "./dist/progress/testing.d.ts",
+      "import": "./dist/esm/progress/testing.js",
+      "require": "./dist/progress/testing.js",
+      "default": "./dist/progress/testing.js"
+    },
     "./socket/testing": {
       "types": "./dist/socket/testing.d.ts",
       "import": "./dist/esm/socket/testing.js",
       "require": "./dist/socket/testing.js",
       "default": "./dist/socket/testing.js"
+    },
+    "./logtrace/testing": {
+      "types": "./dist/logtrace/testing.d.ts",
+      "import": "./dist/esm/logtrace/testing.js",
+      "require": "./dist/logtrace/testing.js",
+      "default": "./dist/logtrace/testing.js"
     },
     "./package.json": "./package.json"
   },
