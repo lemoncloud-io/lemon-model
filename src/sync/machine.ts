@@ -1,6 +1,6 @@
 /**
  * `sync/machine.ts`
- * - L4 sync machine: model type registration, local state, updatedAt freshness, pull/event application.
+ * - L4 sync machine: model type registration, local state, versionOf freshness (default updatedAt), pull/event application.
  *
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */
@@ -70,6 +70,8 @@ class ModelSyncHandle<M extends SyncTarget> implements ModelSyncSupportable<M> {
     public readonly type: string;
     private readonly store = new Map<string, M>();
     private readonly changeListeners = new Set<(event: SyncChangeEvent<M>) => void>();
+    /** shared version axis for freshness judgement and the watermark (adapter-injected, default updatedAt) */
+    private readonly versionOf: (model: M) => number | undefined;
     private watermark = 0;
     private pulling?: Promise<M[]>;
     private closed = false;
@@ -81,6 +83,7 @@ class ModelSyncHandle<M extends SyncTarget> implements ModelSyncSupportable<M> {
         private readonly onClose: () => void,
     ) {
         this.type = type;
+        this.versionOf = adapter.versionOf ?? (model => model.updatedAt);
     }
 
     /** read-only local state lookup */
@@ -138,7 +141,7 @@ class ModelSyncHandle<M extends SyncTarget> implements ModelSyncSupportable<M> {
             const appliedPage = this.applyModels(page.models ?? []);
             //! watermark advances from pull-applied models ONLY — an event-advanced watermark would
             //! let a lost event skip the pulled backfill of models updated in between (safety-net hole).
-            for (const model of appliedPage) this.watermark = Math.max(this.watermark, model.updatedAt ?? 0);
+            for (const model of appliedPage) this.watermark = Math.max(this.watermark, this.versionOf(model) ?? 0);
             //! emit per page so applied pages are notified even if a later page request fails.
             if (appliedPage.length) this.emitChange('pull', appliedPage);
             applied.push(...appliedPage);
@@ -149,7 +152,7 @@ class ModelSyncHandle<M extends SyncTarget> implements ModelSyncSupportable<M> {
         return applied;
     }
 
-    /** apply the updatedAt freshness rule to each incoming model; returns the ones actually applied/removed */
+    /** apply the versionOf freshness rule to each incoming model; returns the ones actually applied/removed */
     private applyModels(models: M[]): M[] {
         const changed: M[] = [];
         for (const model of models) {
@@ -159,14 +162,16 @@ class ModelSyncHandle<M extends SyncTarget> implements ModelSyncSupportable<M> {
     }
 
     private applyOne(incoming: M): boolean {
-        if (incoming?.id == null || incoming?.updatedAt == null) return false; // no updatedAt: ignore
+        if (incoming?.id == null) return false; // no id: ignore
+        const version = this.versionOf(incoming);
+        if (version == null) return false; // no version: ignore
         const local = this.store.get(incoming.id);
         if (!local && incoming.deletedAt) return false; // delete of something already absent: ignore
 
         if (local) {
-            const localUpdatedAt = local.updatedAt;
-            if (localUpdatedAt != null && incoming.updatedAt <= localUpdatedAt) return false; // stale or same value: ignore
-            // local.updatedAt == null: local is stale by definition, fall through and overwrite
+            const localVersion = this.versionOf(local);
+            if (localVersion != null && version <= localVersion) return false; // stale or same value: ignore
+            // local version == null: local is stale by definition, fall through and overwrite
         }
 
         if (incoming.deletedAt) this.store.delete(incoming.id);

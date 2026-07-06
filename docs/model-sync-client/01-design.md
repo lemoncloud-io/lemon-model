@@ -230,7 +230,7 @@ export const createSyncMachine: (client: SocketClientSupportable) => SyncMachine
 - 동기화가 단방향(읽기 전용)이므로 로컬 상태는 항상 서버 확정본이다. 잠정 상태, 충돌 해소, 응답 순서 역전 보정 같은 쓰기 경합 규칙이 필요 없다 — pull과 이벤트가 어떤 순서로 도착해도 updatedAt 판정 하나로 수렴한다.
 - pull 진행 중 도착한 이벤트도 같은 판정을 통과할 뿐 별도 보류가 없다.
 
-서버 계약 전제: 서버는 같은 모델의 연속 변경에 대해 updatedAt이 단조 증가함을 보장해야 한다. 같은 ms에 서로 다른 변경이 같은 updatedAt을 가지면 나중 변경이 무시될 수 있다 — 이는 updatedAt 기준 판정의 알려진 한계이며, 이 보장이 어려운 서버는 후속에서 `lock`/`next` 같은 시퀀스 필드 판정으로 확장한다.
+서버 계약 전제: 서버는 같은 모델의 연속 변경에 대해 updatedAt이 단조 증가함을 보장해야 한다. 같은 ms에 서로 다른 변경이 같은 updatedAt을 가지면 나중 변경이 무시될 수 있다 — 이는 updatedAt 기준 판정의 알려진 한계이며, 이 보장이 어려운 서버는 `lock`/`next` 같은 시퀀스 필드를 판정 축으로 주입해 해소한다([05-version-axis](./05-version-axis.md)의 `versionOf` 참조).
 
 ## 공존과 패킷 제약
 
@@ -341,4 +341,4 @@ chatic의 범용화 장벽 4가지가 이 설계에서 해소되는 방식:
 - envelope 레벨 chunking: 큰 payload는 어댑터 페이지네이션 또는 기존 `JSONTransport` 병행 사용으로 대응한다.
 - 쓰기 동기화: 로컬 변경을 서버로 push하는 경로는 범위 밖이다. 필요해지면 어댑터에 push 메서드와 잠정 상태 의미론을 additive로 더하는 후속 설계로 다룬다. 읽기 전용 v1의 스토어·판정 규칙은 그대로 재사용된다.
 - 순서 스트림: `GenAIStreamChunkEvent` 같은 seq 순서 append 스트림은 동기화 대상이 아니다 — 머신의 스토어는 id별 최신본 수렴(LWW)이라 청크를 넣으면 마지막 1개만 남는다. 스트림 자체는 `src/buffer`가 담당하고, 스트림에서 파생된 상태 모델(예: `id=streamId, updatedAt`을 갖는 진행 상태)은 `SyncTarget`으로서 지금 구조로 동기화된다.
-- updatedAt이 아닌 판정(seq 등)의 주입(comparator): 실수요가 생기면 후속으로 연다. 판정 주입은 워터마크 의미도 대상별로 달라져 확장 폭이 크다.
+- updatedAt이 아닌 판정(seq 등)의 주입: [05-version-axis](./05-version-axis.md)의 `versionOf`로 설계 확정(2026-07-06) — 판정·워터마크 공용 스칼라 축의 어댑터 주입.

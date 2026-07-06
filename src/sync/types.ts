@@ -19,7 +19,7 @@ import {
 export interface SyncTarget {
     /** unique id */
     id?: string;
-    /** last-modified timestamp (ms) — the freshness criterion */
+    /** last-modified timestamp (ms) — the field the default versionOf reads */
     updatedAt?: number;
     /** deleted timestamp (ms) — presence removes the model from the store */
     deletedAt?: number;
@@ -88,7 +88,10 @@ export interface SyncReplyPage<M extends SyncTarget> {
  * the machine does not know the wire protocol, and the adapter does not know local state.
  */
 export interface SyncProtocolAdapter<M extends SyncTarget> {
-    /** build a pull request from since(updatedAt watermark) and cursor. omitted since means full pull */
+    /** shared version axis for freshness judgement and the watermark. undefined skips the model (default m => m.updatedAt).
+     *  pure/total like parseEvent — never throw; return a positive finite number or undefined */
+    versionOf?: (model: M) => number | undefined;
+    /** build a pull request from since(versionOf-axis watermark) and cursor. omitted since means full pull */
     buildPull(since?: number, cursor?: any): { type: string; data: any };
     /** extract server-confirmed models and the next cursor from pull reply data */
     parseReply(data: any): SyncReplyPage<M>;

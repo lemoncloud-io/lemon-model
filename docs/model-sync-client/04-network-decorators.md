@@ -1,6 +1,6 @@
 # Network Decorators & Ticker Design
 
-문서 순서: [01-design](./01-design.md) → `05-network-decorators.md`
+문서 순서: [01-design](./01-design.md) → `04-network-decorators.md`
 
 ## 개요
 

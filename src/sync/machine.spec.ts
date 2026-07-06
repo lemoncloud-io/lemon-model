@@ -78,6 +78,29 @@ const attachUserServer = (bridge: PeerBridge, pageSize?: number) => {
     };
 };
 
+/** versionOf(seq) axis target — no updatedAt anywhere (SyncTarget admits it unchanged) */
+interface TaskState {
+    id?: string;
+    seq?: number;
+    deletedAt?: number;
+    percent?: number;
+}
+
+const createTaskAdapter = (): SyncProtocolAdapter<TaskState> => ({
+    versionOf: task => task.seq,
+    buildPull: (since, cursor) => ({ type: 'sync/task:pull', data: { since, cursor } }),
+    parseReply: data => ({ models: data?.models ?? [] }),
+    parseEvent: message => (message.type === 'sync/task:updated' ? (message.data as TaskState[]) : undefined),
+});
+
+const pushTaskEvent = (bridge: PeerBridge, models: TaskState[]) => {
+    bridge.server.post(
+        { type: 'sync/task:updated', data: models, mid: `evt-${++evtNo}` },
+        { clientId: bridge.clientId },
+    );
+    return wait();
+};
+
 describe('machine', () => {
     it('should apply the initial pull after register by default', async () => {
         const bridge = createPeerBridge();
@@ -297,6 +320,78 @@ describe('machine', () => {
         await wait();
 
         expect2(() => jobs.get('j1')).toEqual({ id: 'j1', updatedAt: 100, progress: 42 });
+    });
+
+    it('should judge freshness on an injected versionOf axis (seq) without updatedAt', async () => {
+        const bridge = createPeerBridge();
+        const client = createSocketClient(bridge.network);
+        const machine = createSyncMachine(client);
+        const tasks = machine.register<TaskState>('task', { adapter: createTaskAdapter(), initialPull: false });
+
+        // new model applies on the seq axis
+        await pushTaskEvent(bridge, [{ id: 't1', seq: 3, percent: 10 }]);
+        expect2(() => tasks.get('t1')?.percent).toEqual(10);
+
+        // lower/equal seq: ignored
+        await pushTaskEvent(bridge, [{ id: 't1', seq: 2, percent: 5 }]);
+        await pushTaskEvent(bridge, [{ id: 't1', seq: 3, percent: 7 }]);
+        expect2(() => tasks.get('t1')?.percent).toEqual(10);
+
+        // missing seq on the incoming model: ignored (versionOf undefined)
+        await pushTaskEvent(bridge, [{ id: 't1', percent: 99 }]);
+        expect2(() => tasks.get('t1')?.percent).toEqual(10);
+
+        // higher seq applies
+        await pushTaskEvent(bridge, [{ id: 't1', seq: 4, percent: 50 }]);
+        expect2(() => tasks.get('t1')?.percent).toEqual(50);
+
+        // local model missing seq: stale by definition, overwritten (seeded directly — unreachable via the public contract)
+        (tasks as unknown as { store: Map<string, TaskState> }).store.set('t2', { id: 't2', percent: 1 });
+        await pushTaskEvent(bridge, [{ id: 't2', seq: 1, percent: 2 }]);
+        expect2(() => tasks.get('t2')).toEqual({ id: 't2', seq: 1, percent: 2 });
+
+        // tombstone missing the axis value: silently dropped, the delete never lands (server contract premise 3)
+        await pushTaskEvent(bridge, [{ id: 't1', deletedAt: 100 }]);
+        expect2(() => tasks.get('t1')?.percent).toEqual(50);
+
+        // tombstone carrying the axis value passes freshness and removes (deletedAt rule is orthogonal to the axis)
+        await pushTaskEvent(bridge, [{ id: 't1', seq: 5, deletedAt: 100 }]);
+        expect2(() => tasks.get('t1')).toEqual(undefined);
+    });
+
+    it('should advance the watermark on the versionOf axis from pull-applied models only', async () => {
+        const bridge = createPeerBridge();
+        let taskList: TaskState[] = [];
+        let lastSince: number | undefined;
+        bridge.server.onMessage((message: { type: string; data: any; mid: string }) => {
+            if (message.type !== 'sync/task:pull') throw new Error(`@type[${message.type}] unhandled - test.taskServer`);
+            lastSince = message.data?.since;
+            const since: number = message.data?.since ?? 0;
+            return { models: taskList.filter(task => (task.seq ?? 0) > since) };
+        });
+
+        const client = createSocketClient(bridge.network);
+        const machine = createSyncMachine(client);
+        const tasks = machine.register<TaskState>('task', { adapter: createTaskAdapter(), initialPull: false });
+
+        // first pull starts from scratch and applies everything
+        taskList = [
+            { id: 't1', seq: 3 },
+            { id: 't2', seq: 7 },
+        ];
+        await tasks.pull();
+        expect2(() => lastSince).toEqual(undefined);
+        expect2(() => tasks.list().length).toEqual(2);
+
+        // the next pull carries since = max(seq) of the pull-applied models
+        await tasks.pull();
+        expect2(() => lastSince).toEqual(7);
+
+        // an event never advances the watermark, even with a higher seq (safety net is axis-independent)
+        await pushTaskEvent(bridge, [{ id: 't3', seq: 50 }]);
+        expect2(() => tasks.get('t3')?.seq).toEqual(50);
+        await tasks.pull();
+        expect2(() => lastSince).toEqual(7);
     });
 
     it('should guard register()/pull() after close()', async () => {
