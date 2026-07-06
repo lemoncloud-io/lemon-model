@@ -1,6 +1,6 @@
 # Progress SPEC
 
-> Status: Draft (SSOT) / Date: 2026-07-03 / Slug: progress
+> Status: Draft (SSOT) / Date: 2026-07-05 / Slug: progress
 
 # 한줄 목표
 
@@ -32,8 +32,8 @@ flowchart LR
 reporter는 percent가 "어떻게" 계산되는지 모른다 — 산출은 gauge 주입, 도메인 값은 서비스가 옮겨 적는다. 대표 배선 3가지:
 
 1. **스텝 체인** (codes-goods-api 배포 흐름): `executeNextStep`이 `progress$.state`를 `github → build → deploy`로 전이시키는 체인이라면, 서비스는 전이마다 `task.update({ step: states.indexOf(state) + 1, totalSteps: states.length, label: state })`로 옮겨 적는다. percent 없이 step/totalSteps만으로 충분한 케이스 — gauge 불필요.
-2. **시간 흐름 기반**: 예상 소요를 아는 작업은 `new TimeProgressGauge(expectedMs)`를 주입한다. heartbeat마다 `measure()`가 경과 비율 percent를 채운다 (99% 캡 — 완료 선언은 `done()`만이 한다).
-3. **버퍼 충전율 기반**: GenAI 스트림 작업은 `new BufferProgressGauge(() => buffer.snapshot().progress)`를 주입한다. `src/buffer`의 `GenAIStreamProgress.percent/bufferPercent`를 구조적 타입으로 읽으므로 모듈 의존이 생기지 않는다.
+2. **시간 흐름 기반**: 예상 소요를 아는 작업은 `createTimeProgressGauge(expectedMs)`를 주입한다. heartbeat마다 gauge가 경과 비율 percent를 채운다 (99% 캡 — 완료 선언은 `done()`만이 한다).
+3. **버퍼 충전율 기반**: GenAI 스트림 작업은 `createBufferProgressGauge(() => buffer.snapshot().progress)`를 주입한다. `src/buffer`의 `GenAIStreamProgress.percent/bufferPercent`를 구조적 타입으로 읽으므로 모듈 의존이 생기지 않는다.
 
 ## 데이터 계약 (서버 ↔ 클라이언트)
 
@@ -46,7 +46,7 @@ reporter는 percent가 "어떻게" 계산되는지 모른다 — 산출은 gauge
 | 상황 | 호출 또는 처리 | 결과 |
 | --- | --- | --- |
 | 작업 상태 갱신 | `task.update(patch)` | 로컬 `ProgressState`를 갱신하고 `SocketMessage<ProgressState>`를 발신한다. `throttleMs`가 있으면 발신을 묶는다. |
-| heartbeat tick | `gauge.measure()` | `percent`, `step`, `totalSteps`, `label`을 읽어 현재 스냅샷에 병합한 뒤 발신한다. |
+| heartbeat tick | `gauge()` | `percent`, `step`, `totalSteps`, `label`을 읽어 현재 스냅샷에 병합한 뒤 새 seq로 발신한다. |
 | 작업 완료/실패 | `task.done(patch?)` / `task.error(err, patch?)` | 최종 `ProgressState`를 즉시 발신한다. |
 
 ### 클라이언트 쪽
@@ -58,8 +58,6 @@ reporter는 percent가 "어떻게" 계산되는지 모른다 — 산출은 gauge
 | WebSocket 메시지 수신 | parse → 같은 id의 최신 `seq`인지 확인 → 스토어 반영 | 구독자에게 `ProgressChangeEvent { state, created }`를 통지한다. |
 | 작업 1개 조회 | `get(id)` | `ProgressState \| undefined` |
 | 전체 조회 | `list()` | `ProgressState[]` |
-
-SDD(Spec-Driven Development): 이 계약이 SSOT다. 구현 중 계약을 바꿔야 하면 코드가 아니라 이 문서 수정을 먼저 제안한다(model-sync-client 02-plan과 같은 원칙). 각 단계는 spec 작성 → 구현 → 게이트 통과 순서로 진행한다.
 
 # 설계
 
@@ -74,13 +72,11 @@ SDD(Spec-Driven Development): 이 계약이 SSOT다. 구현 중 계약을 바꿔
 | timer | reporter가 소유하되 opt-in(`heartbeatMs`, 기본 0 = 비활성). `close()`가 반드시 해제한다 — lambda invocation 종료 전에 close 호출이 서비스 계약 |
 | 의존 방향 | `progress → socket` 단방향. `src/socket`은 `src/progress`를 모른다 |
 
-## 디자인 패턴과 근거
-
 - **Ports & Adapters (sink 주입)**: 서버 발신 경로는 환경마다 다르다(API Gateway management post, Peer simulator, 테스트 캡처). reporter는 `ProgressSink = (message: SocketMessage) => void` 함수 하나만 알고, 환경별 배선은 서비스가 한다. 서버 런타임 의존이 0이 되어 lambda/Node/테스트 어디서나 동일하다.
 - **Observer**: 구독은 기존 컨벤션대로 `SocketUnsubscribe`를 반환한다.
 - **Snapshot Coalescing (Last-Write-Wins)**: 소비자는 작업 id별로 `seq`가 큰 스냅샷만 반영한다. sync machine의 updatedAt 판정과 같은 계열이되, 단일 reporter가 seq를 단조 발급하므로 시계 동기화 문제가 없다.
-- **Throttle (발신 억제)**: 빠른 `update()` 연타는 로컬 상태만 갱신하고 발신은 `throttleMs`당 최대 1회로 묶는다. 최종 스냅샷 수렴 의미론 덕에 중간 발신 생략이 정확성에 영향을 주지 않는다.
-- **Strategy via 추상 클래스 (Gauge)**: percent 산출 방식은 작업마다 다르다 — 시간 흐름, 버퍼 충전율, 스텝 카운트. `AbstractProgressGauge`의 추상 메서드 `measure()` 하나로 산출 전략을 주입하고, reporter는 산출 방식을 모른다. `genai`의 `HttpAbstractGenAI` 추상 클래스와 같은 확장 계열이며, 새 산출 방식 추가에 이 모듈 수정이 필요 없다.
+- **Throttle (발신 억제, leading + trailing)**: 창이 열려 있지 않을 때의 `update()`는 즉시 발신하고 창을 연다(leading — 첫 반응이 늦지 않게). 창 내 추가 `update()`는 로컬만 갱신하고, 창 마감 시 미발신 변경이 있으면 **최신** 스냅샷 1개를 발신한다(trailing). 최종 스냅샷 수렴 의미론 덕에 중간 발신 생략이 정확성에 영향을 주지 않는다.
+- **Strategy via 함수 주입 (Gauge)**: percent 산출 방식은 작업마다 다르다 — 시간 흐름, 버퍼 충전율, 스텝 카운트. `ProgressGauge = () => ProgressMeasure` 함수 하나로 산출 전략을 주입하고, reporter는 산출 방식을 모른다. sink를 함수 하나로 받는 것과 같은 스타일이며(메서드 1개짜리 추상 클래스는 표면적만 늘린다), 새 산출 방식 추가에 이 모듈 수정이 필요 없다.
 
 ## Wire 규약
 
@@ -126,28 +122,21 @@ export interface ProgressState {
 export type ProgressMeasure = Partial<Pick<ProgressState, 'percent' | 'step' | 'totalSteps' | 'label'>>;
 
 /**
- * 진행률 산출 추상 클래스 — percent가 "어떻게" 계산되는지를 reporter에서 분리한다.
- * 추상 메서드 measure() 하나만 구현하면 어떤 산출 방식이든 주입된다.
+ * 진행률 산출 전략 — percent가 "어떻게" 계산되는지를 reporter에서 분리한다.
+ * 순수 조회여야 하며 부수효과 금지. 함수 하나면 어떤 산출 방식이든 주입된다.
  */
-export abstract class AbstractProgressGauge {
-    /** 현재 측정치 산출. 순수 조회여야 하며 부수효과 금지 */
-    public abstract measure(): ProgressMeasure;
-}
+export type ProgressGauge = () => ProgressMeasure;
 
-/** 시간 흐름 기반 — 예상 소요(expectedMs) 대비 경과 비율. 99%에서 캡 (완료 선언은 done()만이 한다) */
-export class TimeProgressGauge extends AbstractProgressGauge {
-    constructor(expectedMs: number, now?: () => number);
-    public measure(): ProgressMeasure;
-}
+/** 시간 흐름 기반 gauge — 예상 소요(expectedMs) 대비 경과 비율. 99%에서 캡 (완료 선언은 done()만이 한다) */
+export const createTimeProgressGauge: (expectedMs: number, now?: () => number) => ProgressGauge;
 
-/** 버퍼 충전율 기반 — GenAIStreamProgress 호환 소스의 percent/bufferPercent를 읽는다 (구조적 타입, src/buffer 의존 없음) */
-export class BufferProgressGauge extends AbstractProgressGauge {
-    constructor(source: () => { percent?: number; bufferPercent?: number } | undefined);
-    public measure(): ProgressMeasure;
-}
+/** 버퍼 충전율 기반 gauge — GenAIStreamProgress 호환 소스의 percent/bufferPercent를 읽는다 (구조적 타입, src/buffer 의존 없음) */
+export const createBufferProgressGauge: (
+    source: () => { percent?: number; bufferPercent?: number } | undefined,
+) => ProgressGauge;
 
-/** 서버 발신 경로 주입 (Ports & Adapters) */
-export type ProgressSink = (message: SocketMessage<ProgressState>) => void;
+/** 서버 발신 경로 주입 (Ports & Adapters). 반환 Promise의 reject는 onError로 배선된다 */
+export type ProgressSink = (message: SocketMessage<ProgressState>) => void | Promise<void>;
 
 export interface ProgressReporterOptions {
     /** 봉투 type (기본 'progress:update') */
@@ -167,7 +156,7 @@ export interface ProgressTaskSupportable {
     readonly id: string;
     /** 현재 로컬 스냅샷 */
     readonly state: ProgressState;
-    /** 부분 갱신 후 발신(throttle 적용). 종료된 작업이면 무시 */
+    /** 부분 갱신 후 발신(throttle 적용). 종료된 작업이면 무시. status 역행(running → pending)은 status만 무시하고 나머지 patch는 반영 */
     update(patch: Partial<Omit<ProgressState, 'id' | 'ts' | 'seq' | 'status'>> & { status?: 'pending' | 'running' }): void;
     /** 종료 상태로 전이하고 즉시 발신(throttle 무시). 이후 update는 무시 */
     done(patch?: Partial<Pick<ProgressState, 'label' | 'meta'>>): void;
@@ -176,8 +165,8 @@ export interface ProgressTaskSupportable {
 
 /** 작업 1개의 시작 옵션 */
 export interface ProgressTaskOptions {
-    /** percent 자동 산출 전략. update/heartbeat 발신 직전 measure() 결과를 스냅샷에 병합한다. 명시 update 값이 gauge보다 우선 */
-    gauge?: AbstractProgressGauge;
+    /** percent 자동 산출 전략. update/heartbeat 발신 직전 gauge() 결과를 스냅샷에 병합한다. 명시 update 값이 gauge보다 우선 */
+    gauge?: ProgressGauge;
 }
 
 export interface ProgressReporterSupportable {
@@ -210,7 +199,7 @@ export interface ProgressConsumerOptions {
 export interface ProgressConsumerSupportable {
     /** 작업 id로 최신 스냅샷 조회 */
     get(id: string): ProgressState | undefined;
-    /** 보관 중인 전체 스냅샷 */
+    /** 보관 중인 전체 스냅샷 — 작업이 처음 반영된 순서 (seq는 reporter 단위라 작업 간 정렬 키가 아니다) */
     list(): ProgressState[];
     /** 반영된 변경 구독 (stale 드랍은 통지하지 않음) */
     onChange(handler: (event: ProgressChangeEvent) => void): SocketUnsubscribe;
@@ -240,12 +229,12 @@ export const createProgressConsumer: (network: NetworkSupportable, options?: Pro
 | 상황 | 규칙 |
 | --- | --- |
 | `start()` | 초기 스냅샷(`pending` 또는 initial 지정값) 즉시 발신 |
-| `update()` | 로컬 상태 갱신 후 throttle 창 내 최대 1회 발신. 창 마감 시 **최신** 스냅샷만 발신 |
-| gauge 병합 | gauge가 있으면 update/heartbeat 발신 직전 `measure()` 결과를 스냅샷에 병합한다. 같은 필드는 명시 update 값이 우선. `measure()` throw는 `onError`로 알리고 gauge 없이 발신 |
-| heartbeat | running 작업의 최신 스냅샷을 `heartbeatMs`마다 재발신 (이벤트 유실 안전망) |
+| `update()` | 로컬 상태 갱신 후 leading + trailing throttle: 창이 닫혀 있으면 즉시 발신 + 창 열기, 창 내면 로컬만 갱신하고 창 마감 시 **최신** 스냅샷만 발신. status 역행(running → pending)은 status만 무시하고 나머지 patch는 반영 |
+| gauge 병합 | gauge가 있으면 update/heartbeat 발신 직전 `gauge()` 결과를 스냅샷에 병합한다. 같은 필드는 명시 update 값이 우선. `gauge()` throw는 `onError`로 알리고 gauge 없이 발신 |
+| heartbeat | running 작업의 최신 스냅샷을 `heartbeatMs`마다 **새 seq로** 재발신 (이벤트 유실 안전망). 같은 seq로 재발신하면 기존 consumer가 `seq <= local.seq`로 버려 gauge 갱신분이 반영되지 않으므로, heartbeat 발신도 seq를 증가시킨다 |
 | `done()` / `error()` | throttle을 무시하고 즉시 발신. 대기 중이던 throttle 발신은 취소(종료 스냅샷이 대체) |
 | `close()` | 미발신 throttle 스냅샷 발신, 전 timer 해제 |
-| sink throw / 크기 초과 | `onError`로 알리고 계속 진행. reporter는 작업 코드를 절대 중단시키지 않는다 |
+| sink throw / reject / 크기 초과 | `onError`로 알리고 계속 진행. sink가 Promise를 반환하면 reject도 `onError`로 배선한다(unhandled rejection 금지). reporter는 작업 코드를 절대 중단시키지 않는다 |
 
 ## 파일 구조와 export
 
@@ -317,12 +306,12 @@ export const runProgressLoop: (options: ProgressLoopOptions) => Promise<Progress
 
 1. **e2e**: start→update×N→done이 클라이언트에서 최종 상태로 수렴. percent/step 반영 확인.
 2. **unordered 수렴**: `configureNetwork({ unordered: true, jitterMs })` 하에 스냅샷이 뒤섞여 도착해도 seq 판정으로 최종 상태가 수렴하고 stale이 통지되지 않음.
-3. **throttle/heartbeat**: update 연타 시 발신 횟수가 throttle 창 수와 일치. heartbeat가 무변경 구간에서 최신 스냅샷을 재발신.
+3. **throttle/heartbeat**: 첫 update는 즉시 발신(leading), 창 내 연타는 창 마감 시 최신 1회(trailing) — 발신 횟수가 창 수 + 1과 일치. heartbeat가 무변경 구간에서 최신 스냅샷을 새 seq로 재발신하고 consumer에 반영됨.
 4. **종료 의미론**: done 이후 update 무시, done 즉시 발신이 throttle 대기분을 대체.
 5. **패킷 제한**: `maxPacketBytes` 초과 meta가 제거되어 발신되고 onError가 관찰됨.
 6. **공존**: 한 network 위에 progress consumer + `JSONTransport` receiver + sync envelope 트래픽을 함께 올려 상호 오수신 없음(01-design 공존 시나리오의 progress 축 담당).
 7. **자원 해제**: consumer.close() 후 수신 중단·network 미폐쇄, reporter.close() 후 timer 잔존 없음, maxTasks 초과 제거 순서.
-8. **gauge**: `TimeProgressGauge`가 경과 비율을 99 캡으로 산출(fake timers), `BufferProgressGauge`가 소스 percent를 병합, 명시 update 값이 gauge보다 우선, `measure()` throw 시 onError + gauge 없이 발신.
+8. **gauge**: `createTimeProgressGauge`가 경과 비율을 99 캡으로 산출(fake timers), `createBufferProgressGauge`가 소스 percent를 병합, 명시 update 값이 gauge보다 우선, `gauge()` throw 시 onError + gauge 없이 발신.
 
 ### 실환경 진단 (후속)
 
@@ -335,4 +324,4 @@ export const runProgressLoop: (options: ProgressLoopOptions) => Promise<Progress
 - **다중 reporter가 같은 작업 id를 공유**: 지원하지 않음(위 seq 계약). 필요해지면 seq를 `(epoch, seq)` 복합 판정으로 확장한다.
 - **영속화**: 소비자 스토어는 메모리 전용.
 - **집계**: 여러 작업의 롤업(전체 %) 계산은 애플리케이션 소관. 소비자는 원본 스냅샷만 보관한다.
-- **GenAI 스트림 진행률**: `src/buffer`의 `GenAIStreamProgress`(청크 스트림 내부 진행률)는 이 모듈과 별개다. 스트림에서 파생된 작업 상태를 Progress로 올리려면 `BufferProgressGauge`(구조적 타입 소스)를 주입하거나 서비스가 reporter.update()로 옮겨 적는다 — 두 모듈은 import로 엮이지 않는다.
+- **GenAI 스트림 진행률**: `src/buffer`의 `GenAIStreamProgress`(청크 스트림 내부 진행률)는 이 모듈과 별개다. 스트림에서 파생된 작업 상태를 Progress로 올리려면 `createBufferProgressGauge`(구조적 타입 소스)를 주입하거나 서비스가 reporter.update()로 옮겨 적는다 — 두 모듈은 import로 엮이지 않는다.
