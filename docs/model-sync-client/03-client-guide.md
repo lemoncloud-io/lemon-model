@@ -15,6 +15,8 @@ lemon-model이 제공하는 것: 웹소켓 network 어댑터, L3 socket client(�
 ```ts
 import {
     createOwnedWebSocketNetwork,
+    createReconnectingNetwork,
+    createSyncTicker,
     createSocketClient,
     createSyncMachine,
     CoreModel,
@@ -109,6 +111,19 @@ const users = machine.register('user', { adapter: userAdapter });
 
 소켓을 혼자 쓰는 단순한 앱이면 `filter`를 생략해도 된다 — envelope으로 parse되지 않는 raw는 조용히 무시된다.
 
+### 재연결
+
+끊김에 스스로 대응하려면 L0/L1 자리에서 network를 재연결 decorator로 감싼다. 인스턴스 identity가 유지되므로 L3/L4 재배선이 없다. factory가 재시도마다 호출되므로 갱신 토큰 URL도 여기서 읽으면 되고, 재연결되면 `tick()` 한 번으로 워터마크 이후를 따라잡는다.
+
+```ts
+const network = createReconnectingNetwork(
+    () => createOwnedWebSocketNetwork({ url: buildUrlWithFreshToken() }),
+    { baseMs: 1_000, maxMs: 30_000 },
+);
+// ... 위와 같이 client/machine 배선 후
+network.onReconnect(() => machine.tick());
+```
+
 ## 4. tick — 주기는 서비스가 정한다
 
 머신에는 timer가 없다. 원하는 방식으로 `tick()`을 호출한다.
@@ -119,6 +134,13 @@ const interval = setInterval(() => machine.tick(), 30_000);
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') machine.tick();
 });
+```
+
+실패 시 지수 backoff까지 원하면 opt-in 도구인 ticker를 쓴다. tick이 reject하면 주기를 늘리고(상한 `maxMs`), 성공하면 `intervalMs`로 복원한다.
+
+```ts
+const ticker = createSyncTicker(() => machine.tick(), { intervalMs: 30_000, maxMs: 120_000 });
+ticker.start(); // 해제는 ticker.stop()
 ```
 
 - `tick()`은 등록된 모든 타입을 pull 1회씩 돌린다. 이미 진행 중인 타입은 중첩 실행 없이 그 pull에 합류한다.
@@ -176,6 +198,6 @@ const client = createSocketClient(bridge.network);
 ## 제약과 앞으로
 
 - **읽기 전용**: 로컬 변경을 서버로 보내는 push는 없다. 쓰기가 필요하면 일반 API(HTTP 등)로 쓰고, 결과는 이벤트/pull로 돌아와 반영된다.
-- **재연결 없음**: 끊김 감지·재연결은 1차 범위 밖이다. 재연결 후에는 `machine.tick()` 한 번으로 워터마크 이후 변경분이 따라잡힌다.
+- **재연결은 opt-in**: 기본 network는 재연결하지 않는다. 필요하면 §3의 `createReconnectingNetwork`로 감싼다.
 - **오프라인 저장 없음**: 스토어는 메모리 전용이다. 새로고침하면 초기 pull부터 다시 시작한다.
 - **패킷 제한**: 발신 봉투는 network의 `maxPacketBytes`(시뮬레이터 기본 64kb) 안에 들어야 한다. 초과 시 `request()`가 reject된다.
