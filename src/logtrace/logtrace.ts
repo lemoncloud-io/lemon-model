@@ -140,6 +140,7 @@ class LogTraceReporter implements LogTraceReporterSupportable {
     private seqNo = 0;
     private midNo = 0;
     private timer?: ReturnType<typeof setTimeout>;
+    private sentOnce = false;
     private closed = false;
 
     public constructor(sink: LogTraceSink, options?: LogTraceReporterOptions) {
@@ -168,7 +169,10 @@ class LogTraceReporter implements LogTraceReporterSupportable {
         this.buffer.push(entry);
         this.bufferBytes += bytes + 1;
         if (level === 'error' || this.buffer.length >= this.flushCount) return this.flush();
-        if (this.flushIntervalMs > 0 && !this.timer) this.timer = setTimeout(() => this.flush(), this.flushIntervalMs);
+        if (this.flushIntervalMs <= 0) return;
+        //! leading edge: the first batch of this reporter flushes immediately so the viewer never waits a window.
+        if (!this.sentOnce) return this.flush();
+        if (!this.timer) this.timer = setTimeout(() => this.flush(), this.flushIntervalMs);
     }
 
     public debug(message: string, json?: Record<string, any>): void {
@@ -194,6 +198,7 @@ class LogTraceReporter implements LogTraceReporterSupportable {
         const entries = this.buffer;
         this.buffer = [];
         this.bufferBytes = 0;
+        this.sentOnce = true;
         const message: SocketMessage<LogTraceBatch> = {
             type: this.type,
             data: { entries, source: this.source },

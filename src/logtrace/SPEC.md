@@ -84,7 +84,7 @@ flowchart LR
 | 패킷 제한 | 배치 직렬화 크기가 `maxPacketBytes` 안에 들도록 reporter가 분할한다. 기본값은 모듈 내부 상수 `DEFAULT_MAX_PACKET_BYTES = 64 * 1024`(`src/socket`과 같은 계열)이며 `options.maxPacketBytes`로 재정의한다 — 예: API GW 32kb 프레임 환경이면 `{ maxPacketBytes: 32 * 1024 }`. 단일 엔트리가 초과하면 `json`을 제거하고 `truncated` 표시 |
 | 전달 보장 | at-most-once. 재전송·ack 없음. `seq` 간극으로 유실 관찰만 가능 |
 | 메모리 | consumer는 ring buffer(기본 1,000개)로 상한. 로그 폭주가 브라우저 메모리를 못 뚫는다 |
-| timer | reporter의 flush timer는 lazy(첫 로그에 시작, flush에 정지). `close()`가 flush + 해제 — lambda invocation 종료 전 필수 호출 |
+| timer | reporter의 flush timer는 lazy(첫 로그에 시작, flush에 정지). **첫 배치는 leading edge로 즉시 발신** — 사용자가 첫 로그를 창 시간만큼 기다리지 않는다. `close()`가 flush + 해제 — lambda invocation 종료 전 필수 호출 |
 | 의존 방향 | `logtrace → socket` 단방향. `src/socket`은 `src/logtrace`를 모른다 |
 | 보안 경계 | reporter는 로그 내용을 스크럽하지 않는다. 서버 내부 로그(스택 트레이스, `json`의 도메인 값)가 브라우저 클라이언트로 그대로 나가는 데이터 노출면이므로, `streamTo` 발급 = 열람 권한 부여이며 민감정보 필터링은 서비스 소관이다 |
 
@@ -150,7 +150,7 @@ export interface LogTraceReporterOptions {
     minLevel?: LogTraceLevel;
     /** 이 개수가 쌓이면 flush (기본 20) */
     flushCount?: number;
-    /** 첫 엔트리 이후 이 시간이 지나면 flush. 0이면 개수/크기만 사용 (기본 250) */
+    /** 첫 엔트리 이후 이 시간이 지나면 flush. 첫 배치는 즉시 발신(leading edge). 0이면 개수/크기만 사용 (기본 250) */
     flushIntervalMs?: number;
     /** 배치 직렬화 크기 예산. 초과 직전에 분할 flush (기본 maxPacketBytes의 3/4) */
     maxBatchBytes?: number;
@@ -215,6 +215,7 @@ export const createLogTraceConsumer: (network: NetworkSupportable, options?: Log
 
 | 트리거 | 규칙 |
 | --- | --- |
+| 첫 배치 (leading edge) | reporter 수명 중 아직 한 번도 발신하지 않았으면 첫 엔트리를 즉시 flush — 사용자가 첫 로그를 `flushIntervalMs`만큼 기다리지 않는다 (`flushIntervalMs > 0`일 때만; 0이면 개수/크기 축만 사용) |
 | `flushCount` 도달 | 즉시 flush |
 | `flushIntervalMs` 경과 | 첫 엔트리 기록 시점부터 lazy timer 시작, 만료 시 flush 후 정지 |
 | `maxBatchBytes` 도달 예상 | 새 엔트리를 넣으면 예산 초과일 때, 기존 버퍼를 먼저 flush하고 새 엔트리로 새 배치 시작 |
@@ -336,3 +337,28 @@ export const runLogTraceLoop: (options: LogTraceLoopOptions) => Promise<LogTrace
 - **로그 수집기 연동**: reporter는 wire 리포팅 전용이다. CloudWatch/console 등 서버측 로깅과의 tee 배선은 서비스 소관이다(sink를 감싸면 된다).
 - **압축**: 배치 gzip 등은 1차 제외. maxBatchBytes 분할로 충분하며, 필요해지면 sink 데코레이터로 additive하게 더한다.
 - **구조화 검색**: list()의 조건은 level/limit뿐이다. 텍스트 검색·json 필드 쿼리는 애플리케이션 소관.
+
+## 제약사항
+
+현재 구현이 의도적으로 감수하는 한계다. 계약(비범위)과 달리, 운영 중 체감될 수 있는 지점들을 명시한다.
+
+| 제약 | 내용 | 영향 |
+| --- | --- | --- |
+| at-most-once 유실 | sink 실패 배치는 `onError` 통지 후 폐기된다. 재전송이 없으므로 유실 로그는 복구 불가 | `gapCount`로 유실 "수"만 관찰 가능, 내용은 영구 소실 |
+| tail 유실은 관찰 불가 | `gapCount = maxSeq − 수신 건수`이므로, 수신된 최대 seq **이후**에 발신된 배치가 전부 유실되면 간극이 보이지 않는다 | invocation 말미의 유실(예: close 직후 연결 끊김)은 지표에 안 잡힌다 |
+| leading flush는 reporter 수명당 1회 | 첫 발신 이후로는 항상 timer/count/bytes 배칭이다. 긴 idle 뒤 첫 로그는 다시 최대 `flushIntervalMs` 대기 | 드문드문 로그가 오는 흐름에서는 매 로그가 창 시간만큼 지연될 수 있다 |
+| 절단은 파괴적 | 예산 초과 엔트리의 `json` 제거·message 절단은 wire 발신 전에 일어난다 | 절단된 내용은 클라이언트에서 복구 불가 (`truncated` 플래그와 `onError`로 관찰만 가능) |
+| consumer 메모리 성장 | source별 dedup용 `seen: Set<number>`가 수신 로그 수에 비례해 자란다 (코드의 `ponytail:` 주석) | 초장기 세션 + 대량 로그에서 브라우저 메모리 부담. ring buffer 상한과 별개 |
+| 크기 계산은 근사 | `maxBatchBytes`는 엔트리 직렬화 합 기준이고, 봉투 오버헤드(type/mid/source)는 기본 3/4 여유분이 흡수한다 | `type`/`source`를 비정상적으로 길게 주면 `maxPacketBytes`를 넘길 수 있다 |
+| close() 의존 | lambda freeze 전에 `close()`를 안 부르면 버퍼 잔여분이 유실된다 | 서비스 배선 계약 — 모듈이 강제할 수 없다 |
+| 민감정보 무스크럽 | reporter는 로그 내용을 그대로 내보낸다 (설계의 "보안 경계" 참고) | 스택 트레이스·도메인 값이 브라우저로 노출 — 필터링은 서비스 소관 |
+
+## 개선 필요
+
+우선순위 순. 각 항목은 additive로 더할 수 있어 wire 규약 변경이 없다.
+
+1. **idle 후 leading 재무장**: 버퍼가 비고 일정 시간(예: `flushIntervalMs`의 수 배) 지나면 `sentOnce`를 리셋해, 드문 로그 흐름에서도 첫 로그가 즉시 도착하게 한다. 위 "leading flush는 수명당 1회" 제약의 직접 해소책.
+2. **seen Set → seq 구간 추적**: dedup 상태를 `Set<number>` 대신 연속 구간(range) 목록으로 바꿔 메모리를 O(수신 수)에서 O(간극 수)로 줄인다. 코드의 `ponytail:` 주석이 가리키는 업그레이드 경로.
+3. **tail 유실 힌트**: `close()` 시 최종 seq를 담은 마커(예: 빈 entries + 최종 seq)를 발신하면 consumer가 tail 유실도 계수할 수 있다 — 단, 마커 자체가 유실되는 한계는 남으므로 근본 해결은 pull형 조회(비범위 참고).
+4. **실환경 진단 루프**: `genai/dump-test.ts` 계열의 브라우저 진단 하니스 — "실환경 진단 (후속)" 섹션 참고.
+5. **배치 압축**: 대량 debug 스트림에서 대역폭이 문제가 되면 sink 데코레이터로 gzip을 더한다 — 비범위 섹션의 확장 지점.

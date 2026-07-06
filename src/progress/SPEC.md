@@ -325,3 +325,28 @@ export const runProgressLoop: (options: ProgressLoopOptions) => Promise<Progress
 - **영속화**: 소비자 스토어는 메모리 전용.
 - **집계**: 여러 작업의 롤업(전체 %) 계산은 애플리케이션 소관. 소비자는 원본 스냅샷만 보관한다.
 - **GenAI 스트림 진행률**: `src/buffer`의 `GenAIStreamProgress`(청크 스트림 내부 진행률)는 이 모듈과 별개다. 스트림에서 파생된 작업 상태를 Progress로 올리려면 `createBufferProgressGauge`(구조적 타입 소스)를 주입하거나 서비스가 reporter.update()로 옮겨 적는다 — 두 모듈은 import로 엮이지 않는다.
+
+## 제약사항
+
+현재 구현이 의도적으로 감수하는 한계다. 계약(비범위)과 달리, 운영 중 체감될 수 있는 지점들을 명시한다.
+
+| 제약 | 내용 | 영향 |
+| --- | --- | --- |
+| 접속 이후 스냅샷만 | consumer는 구독 시점 이후 수신분만 안다. replay 없음 | 새로고침·늦은 접속 시 진행 중 작업이 안 보인다. `heartbeatMs`를 켜면 다음 tick에 회복되지만, heartbeat가 꺼져 있고 update도 없으면 종료 스냅샷까지 공백 |
+| gauge는 pull 방식 | `gauge()`는 update/heartbeat **발신 직전에만** 평가된다 | `heartbeatMs: 0`(기본)이면 update가 없는 구간에서 time gauge percent가 멈춰 보인다 — 시간 흐름 gauge는 사실상 heartbeat와 세트 |
+| heartbeat는 reporter 전역 | `heartbeatMs`는 작업별이 아니라 reporter 단위 interval이다. reporter 생성 시 시작되어 running 작업이 없어도 tick이 돈다 | 작업마다 다른 주기가 필요하면 reporter를 분리해야 한다 |
+| meta 제거는 all-or-nothing | `maxPacketBytes` 초과 시 `meta` 전체를 제거하고 발신한다. 부분 축소 없음 | 큰 meta 하나가 통째로 사라진다 — meta는 작게 유지하는 것이 계약 |
+| 유실 관찰 지표 없음 | stale 드랍은 통지되지 않고, logtrace의 `gapCount` 같은 wire 유실 계수가 없다 | 스냅샷 유실은 다음 발신이 치유하므로 설계상 무해하지만, "얼마나 유실됐는지"는 알 수 없다 |
+| invocation 재시작 미지원 | seq가 reporter 단위라 같은 작업 id를 새 reporter(재시도 invocation)가 이어 쓰면 seq가 1부터 다시 시작해 stale로 버려진다 | 재시도 시 작업 id 재발급이 서비스 계약 (비범위 참고) |
+| close() 의존 | lambda freeze 전에 `close()`를 안 부르면 trailing throttle 대기분이 유실되고 heartbeat timer가 잔존한다 | 서비스 배선 계약 — 모듈이 강제할 수 없다 |
+| 완료 이력 소실 | consumer 스토어는 메모리 전용 + `maxTasks` 초과 시 종료 작업부터 제거 | 오래 열린 대시보드에서 과거 완료 작업이 사라질 수 있다 |
+
+## 개선 필요
+
+우선순위 순. 각 항목은 additive로 더할 수 있어 wire 규약 변경이 없다.
+
+1. **pull형 이력 조회**: 접속 시점 이전 상태 공백의 근본 해소. sync machine의 어댑터 패턴으로 초기 상태를 당겨온 뒤 wire 수신으로 이어붙인다 — 비범위 섹션의 1순위 확장 지점.
+2. **(epoch, seq) 복합 판정**: reporter 생성 시각을 epoch로 실어 invocation 재시작·다중 reporter의 같은 id 이어쓰기를 지원한다. 위 "invocation 재시작 미지원" 제약의 해소책.
+3. **gauge 전용 tick**: heartbeat와 독립적으로 gauge만 재평가·발신하는 경량 주기를 검토한다 — time gauge가 heartbeat 없이도 진행돼 보이게. 단, heartbeat가 이미 이 역할을 겸하므로 실측 수요 확인 후.
+4. **meta 우선순위 축소**: all-or-nothing 제거 대신 서비스가 지정한 키 순서로 부분 축소하는 옵션 — 큰 meta 수요가 실제로 생기면.
+5. **실환경 진단 루프**: `genai/dump-test.ts` 계열의 브라우저 진단 하니스 — "실환경 진단 (후속)" 섹션 참고.

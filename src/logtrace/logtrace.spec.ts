@@ -81,20 +81,23 @@ describe('LogTrace', () => {
         reporter.close();
     });
 
-    it('scenario 2: flushIntervalMs elapsing triggers flush (lazy timer)', () => {
+    it('scenario 2: first batch flushes immediately (leading), then flushIntervalMs batches (lazy timer)', () => {
         jest.useFakeTimers();
         try {
             const { batches, sink } = captureSink();
             const reporter = createLogTraceReporter(sink, { source: 's' });
-            reporter.info('hello');
-            jest.advanceTimersByTime(249);
-            expect2(() => batches.length).toEqual(0);
-            jest.advanceTimersByTime(1);
+            //! leading edge: the very first entry must reach the viewer without waiting a window.
+            reporter.info('first');
             expect2(() => batches.length).toEqual(1);
-            expect2(() => batches[0].data.entries.length).toEqual(1);
+            reporter.info('second');
+            jest.advanceTimersByTime(249);
+            expect2(() => batches.length).toEqual(1);
+            jest.advanceTimersByTime(1);
+            expect2(() => batches.length).toEqual(2);
+            expect2(() => batches[1].data.entries.length).toEqual(1);
             //! timer is lazy: it must restart from the NEXT first entry, not keep firing.
             jest.advanceTimersByTime(1000);
-            expect2(() => batches.length).toEqual(1);
+            expect2(() => batches.length).toEqual(2);
             reporter.close();
         } finally {
             jest.useRealTimers();
