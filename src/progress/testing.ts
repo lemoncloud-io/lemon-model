@@ -53,6 +53,7 @@ export const runProgressLoop = async (options: ProgressLoopOptions): Promise<Pro
     const startedAt = Date.now();
     const network = createNetwork({ ...options.networkOptions });
     const typePrefix = options.consumerOptions?.typePrefix ?? 'progress:';
+    // Keep wire packets so specs can compare emitted, applied, and stale counts.
     const rawPackets: string[] = [];
     const unsubscribeRaw = network.onMessage(raw => rawPackets.push(raw));
     const consumer = createProgressConsumer(network, options.consumerOptions);
@@ -66,6 +67,7 @@ export const runProgressLoop = async (options: ProgressLoopOptions): Promise<Pro
 
     try {
         const tasks = new Map<string, ProgressTaskSupportable>();
+        // Reuse task handles by id so each script patch models a real task update.
         const taskOf = (id: string): ProgressTaskSupportable => {
             const existing = tasks.get(id);
             if (existing) return existing;
@@ -83,6 +85,7 @@ export const runProgressLoop = async (options: ProgressLoopOptions): Promise<Pro
         reporter.close();
         await new Promise(resolve => setTimeout(resolve, options.settleMs ?? 50));
 
+        // Only matching progress envelopes can become stale drops on a shared network.
         const arrived = rawPackets.filter(raw => raw.includes(`"type":"${typePrefix}`)).length;
         return {
             elapsedMs: Date.now() - startedAt,

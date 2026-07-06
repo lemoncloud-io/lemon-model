@@ -47,6 +47,7 @@ describe('LogTrace', () => {
             flushIntervalMs: 0,
         });
 
+        // Count flushes the first three entries; error forces the final one out.
         reporter.debug('d');
         reporter.info('i', { productId: 'P1' });
         reporter.warn('w'); // 3rd entry -> flushCount flush
@@ -276,6 +277,7 @@ describe('LogTrace', () => {
         const jsonSeen: any[] = [];
         json.onMessage(data => jsonSeen.push(data));
 
+        // Other envelope types share the socket but should stay invisible to logtrace.
         network.send(JSON.stringify({ type: 'sync/put', data: { any: 1 }, mid: 'm1' }));
         network.send(JSON.stringify({ type: 'progress:update', data: { percent: 10 }, mid: 'p1' }));
         json.send({ data: { text: 'hello' } });
@@ -365,6 +367,131 @@ describe('LogTrace', () => {
         expect2(() => metrics.maxPacketBytes <= 2 * 1024).toEqual(true);
         expect2(() => metrics.batches >= 5).toEqual(true); // 100 entries cannot fit in fewer than 5 batches at 20/flush
         expect2(() => metrics.finalEntries.length).toEqual(100);
+    });
+
+    it('scenario 10: custom type/typePrefix routes batches to a dedicated consumer without cross-talk', async () => {
+        const network = createNetwork({ id: 'logtrace-custom-type' });
+        const defaultConsumer = createLogTraceConsumer(network); // prefix 'log:'
+        const appConsumer = createLogTraceConsumer(network, { typePrefix: 'app:' }); // prefix 'app:'
+        const defaultSeen: LogTraceEntry[] = [];
+        const appSeen: LogTraceEntry[] = [];
+        defaultConsumer.onEntry(entry => defaultSeen.push(entry));
+        appConsumer.onEntry(entry => appSeen.push(entry));
+
+        const defaultReporter = createLogTraceReporter(message => network.send(JSON.stringify(message)), {
+            source: 's1',
+            flushIntervalMs: 0,
+        });
+        const appReporter = createLogTraceReporter(message => network.send(JSON.stringify(message)), {
+            type: 'app:trace',
+            source: 's2',
+            flushIntervalMs: 0,
+        });
+        // Routing is decided by envelope type, not by source or message content.
+        defaultReporter.info('default-msg');
+        appReporter.info('app-msg');
+        defaultReporter.close();
+        appReporter.close();
+        await wait();
+
+        expect2(() => defaultSeen.map(entry => entry.message)).toEqual(['default-msg']);
+        expect2(() => appSeen.map(entry => entry.message)).toEqual(['app-msg']);
+        defaultConsumer.close();
+        appConsumer.close();
+        network.close();
+    });
+
+    it('scenario 10: consumer silently skips broken JSON, null data, and invalid entry fields', async () => {
+        const network = createNetwork({ id: 'logtrace-robustness' });
+        const consumer = createLogTraceConsumer(network);
+        const seen: LogTraceEntry[] = [];
+        consumer.onEntry(entry => seen.push(entry));
+
+        //! passes the substring filter but is not parseable JSON -> JSON.parse catch
+        network.send('"type":"log:trace not valid json');
+        //! valid JSON, matching type, but data is null -> batch shape check fails
+        network.send(JSON.stringify({ type: 'log:trace', data: null, mid: 'm1' }));
+        //! valid batch shape but entries contain a mix of valid and invalid entries
+        network.send(
+            JSON.stringify({
+                type: 'log:trace',
+                data: {
+                    source: 's',
+                    entries: [
+                        { level: 'info', ts: 1000, message: 'valid', seq: 1 },
+                        { level: 'bad-level', ts: 1000, message: 'invalid-level', seq: 2 },
+                        { level: 'info', ts: 1000, message: 'no-seq' },
+                        { level: 'info', ts: 1000, message: 'zero-seq', seq: 0 },
+                    ],
+                },
+                mid: 'm2',
+            }),
+        );
+        await wait();
+
+        expect2(() => seen.map(entry => entry.message)).toEqual(['valid']);
+        consumer.close();
+        network.close();
+    });
+
+    it('emitError is a no-op when onError is not set (sink throw without onError)', () => {
+        //! covers the this.onError?. undefined branch: emitError called but onError not registered
+        const reporter = createLogTraceReporter(
+            () => {
+                throw new Error('sink fail');
+            },
+            { source: 's', flushIntervalMs: 0 },
+        );
+        reporter.info('x');
+        expect2(() => reporter.flush()).toEqual(undefined); // must not throw
+        reporter.close();
+    });
+
+    it('reporter created with no options uses all defaults (covers options?. short-circuit branches)', () => {
+        const { batches, sink } = captureSink();
+        const reporter = createLogTraceReporter(sink);
+        reporter.info('hello');
+        reporter.close();
+        expect2(() => batches[0].type).toEqual('log:trace');
+        expect2(() => batches[0].data.entries[0].message).toEqual('hello');
+        expect2(() => typeof batches[0].data.source).toEqual('string'); // auto-generated source
+    });
+
+    it('emitError swallows a throwing onError without breaking the reporter', () => {
+        const { batches, sink } = captureSink();
+        const reporter = createLogTraceReporter(sink, {
+            source: 's',
+            flushIntervalMs: 0,
+            maxBatchBytes: 128,
+            onError: () => {
+                throw new Error('observer boom');
+            },
+        });
+        reporter.info('msg', { blob: 'x'.repeat(500) }); // oversized -> truncate -> emitError -> catch
+        reporter.flush();
+        expect2(() => batches[0].data.entries[0].truncated).toEqual(true);
+        reporter.close();
+    });
+
+    it('list() returns tail slice on limit, empty on limit:0, all on negative limit', async () => {
+        const network = createNetwork({ id: 'logtrace-list-edge' });
+        const consumer = createLogTraceConsumer(network);
+        network.send(
+            rawBatch('s', [
+                { seq: 1, ts: 100 },
+                { seq: 2, ts: 200 },
+                { seq: 3, ts: 300 },
+            ]),
+        );
+        await wait();
+
+        // limit keeps the newest tail; non-positive limits are explicit edge cases.
+        expect2(() => consumer.list().length).toEqual(3);
+        expect2(() => consumer.list({ limit: 2 }).map(entry => entry.seq)).toEqual([2, 3]); // tail-2
+        expect2(() => consumer.list({ limit: 0 }).length).toEqual(0); // 0 -> empty
+        expect2(() => consumer.list({ limit: -1 }).length).toEqual(3); // negative -> all
+        consumer.close();
+        network.close();
     });
 });
 

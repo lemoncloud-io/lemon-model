@@ -44,6 +44,7 @@ describe('progress', () => {
         expect2(() => metrics.applied).toEqual(4);
         expect2(() => metrics.staleDropped).toEqual(0);
         expect2(() => metrics.finalStates.length).toEqual(1);
+        // The terminal patch updates status/label while keeping prior progress fields.
         const { ts: _ts, ...final } = metrics.finalStates[0];
         expect2(() => final).toEqual({
             id: 'task',
@@ -66,6 +67,7 @@ describe('progress', () => {
             networkOptions: { unordered: true, latencyMs: 1, jitterMs: 20 },
             settleMs: 200,
         });
+        // Stale drops are older arrivals; the latest seq must still win.
         expect2(() => metrics.staleDropped > 0).toEqual(true);
         expect2(() => metrics.emitted).toEqual(metrics.applied + metrics.staleDropped);
         expect2(() => metrics.finalStates[0].status).toEqual('done');
@@ -174,6 +176,39 @@ describe('progress', () => {
         reporter.close();
     });
 
+    it('falls back to string coercion when error has no message property or is null', () => {
+        const { messages, sink } = captureSink();
+        const reporter = createProgressReporter(sink);
+        const task = reporter.start('t1');
+        const noMessage = { toString: () => 'raw-error' } as any;
+        task.error(noMessage);
+        expect2(() => messages[1].data.error).toEqual('raw-error');
+        reporter.close();
+        // null error covers the error?. optional-chaining null branch
+        const { messages: messages2, sink: sink2 } = captureSink();
+        const reporter2 = createProgressReporter(sink2);
+        reporter2.start('t1').error(null as any);
+        expect2(() => messages2[1].data.error).toEqual('null');
+        reporter2.close();
+    });
+
+    it('uses custom envelope type from reporter options', () => {
+        const { messages, sink } = captureSink();
+        const reporter = createProgressReporter(sink, { type: 'task:progress' });
+        reporter.start('t1');
+        expect2(() => messages[0].type).toEqual('task:progress');
+        reporter.close();
+    });
+
+    it('applies patch fields on update() called without arguments', () => {
+        const { messages, sink } = captureSink();
+        const reporter = createProgressReporter(sink);
+        const task = reporter.start('t1');
+        task.update(undefined as any);
+        expect2(() => messages[1].data.status).toEqual('pending'); // no crash, no status change
+        reporter.close();
+    });
+
     /* scenario 5: packet limit - oversized meta is stripped and reported */
     it('strips meta over maxPacketBytes and notifies onError', () => {
         const { messages, sink } = captureSink();
@@ -221,6 +256,7 @@ describe('progress', () => {
 
         const reporter = createProgressReporter(message => network.send(JSON.stringify(message)));
         const task = reporter.start('job-1');
+        // Shared-network noise must not be consumed as progress state.
         network.send(JSON.stringify({ type: 'sync/patch', data: { id: 'job-1', seq: 999 }, mid: 's1' }));
         transport.send({ hello: 'world' });
         task.done();
@@ -236,6 +272,57 @@ describe('progress', () => {
     });
 
     /* scenario 7: resource release */
+    it('silently ignores malformed JSON on the consumer network', async () => {
+        const network = createNetwork({ id: 'progress-malformed' });
+        const consumer = createProgressConsumer(network);
+        const events: string[] = [];
+        consumer.onChange(({ state }) => events.push(state.id));
+        network.send('not-json');
+        network.send('{"type":"progress:update",broken:'); // passes raw filter, fails JSON.parse
+        await wait();
+        expect2(() => events).toEqual([]);
+        expect2(() => consumer.list()).toEqual([]);
+        consumer.close();
+        network.close();
+    });
+
+    it('ignores consumer messages that pass raw filter but fail type or data validation', async () => {
+        const network = createNetwork({ id: 'progress-validate' });
+        // custom typePrefix covers bid=64 (line 313)
+        const consumer = createProgressConsumer(network, { typePrefix: 'task:' });
+        // null top-level type: raw has "type":"task: in nested meta → passes filter
+        // typeof null !== 'string' → covers bid=78+80 (line 348 short-circuit)
+        network.send('{"meta":{"type":"task:x"},"type":null,"mid":"m1","data":{}}');
+        // valid type but null data → covers bid=82 (line 350 !state guard)
+        network.send('{"type":"task:update","data":null,"mid":"m2"}');
+        await wait();
+        expect2(() => consumer.list()).toEqual([]);
+        consumer.close();
+        network.close();
+    });
+
+    it('unsubscribes a single onChange handler without affecting others', async () => {
+        const network = createNetwork({ id: 'progress-unsub' });
+        const consumer = createProgressConsumer(network);
+        const reporter = createProgressReporter(message => network.send(JSON.stringify(message)));
+        const eventsA: string[] = [];
+        const eventsB: string[] = [];
+        const unsubA = consumer.onChange(({ state }) => eventsA.push(state.id));
+        consumer.onChange(({ state }) => eventsB.push(state.id));
+        reporter.start('t1');
+        await wait();
+        expect2(() => eventsA).toEqual(['t1']);
+        expect2(() => eventsB).toEqual(['t1']);
+        unsubA();
+        reporter.start('t2');
+        await wait();
+        expect2(() => eventsA).toEqual(['t1']); // stopped after unsubA
+        expect2(() => eventsB).toEqual(['t1', 't2']); // still active
+        reporter.close();
+        consumer.close();
+        network.close();
+    });
+
     it('stops receiving after consumer.close() while the shared network stays open', async () => {
         const network = createNetwork({ id: 'progress-close' });
         const consumer = createProgressConsumer(network);
@@ -280,6 +367,13 @@ describe('progress', () => {
         expect2(() => gauge()).toEqual({ percent: 50 });
         nowMs = 5000;
         expect2(() => gauge()).toEqual({ percent: 99 });
+    });
+
+    it('returns 99 percent immediately when time gauge expectedMs is 0 or negative', () => {
+        const gauge0 = createTimeProgressGauge(0);
+        expect2(() => gauge0()).toEqual({ percent: 99 });
+        const gaugeNeg = createTimeProgressGauge(-500);
+        expect2(() => gaugeNeg()).toEqual({ percent: 99 });
     });
 
     it('reads percent then bufferPercent from a buffer gauge source', () => {
@@ -335,6 +429,7 @@ describe('progress', () => {
             const task = reporter.start('t1');
             task.update({ status: 'running', percent: 10 }); // leading
             task.update({ percent: 77 }); // pending in window
+            // close() is the final flush point for window-held progress.
             reporter.close();
             expect2(() => messages[messages.length - 1].data.percent).toEqual(77);
             expect2(() => jest.getTimerCount()).toEqual(0);

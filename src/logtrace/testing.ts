@@ -55,11 +55,13 @@ export interface LogTraceLoopMetrics {
 export const runLogTraceLoop = async (options: LogTraceLoopOptions): Promise<LogTraceLoopMetrics> => {
     const startedAt = Date.now();
     const network = createNetwork(options.networkOptions);
+    // Raw packets measure batching and packet budgets, separate from delivery.
     const rawPackets: string[] = [];
     const unsubscribeRaw = network.onMessage(packet => rawPackets.push(packet));
     const consumer = createLogTraceConsumer(network, options.consumerOptions);
     let delivered = 0;
     let truncated = 0;
+    // Consumer callbacks are the source of delivered/truncated metrics.
     const unsubscribeEntry = consumer.onEntry(entry => {
         delivered += 1;
         if (entry.truncated) truncated += 1;
@@ -71,6 +73,7 @@ export const runLogTraceLoop = async (options: LogTraceLoopOptions): Promise<Log
     }, options.reporterOptions);
 
     try {
+        // Replay input synchronously; reporter options decide when batches flush.
         for (const record of options.entries) reporter.log(record.level, record.message, record.json);
         reporter.close();
         await new Promise(resolve => setTimeout(resolve, options.settleMs ?? 50));
