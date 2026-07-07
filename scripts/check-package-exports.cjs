@@ -10,8 +10,13 @@ const publicModuleNames = [
     'lemon-model',
     'lemon-model/genai/testing',
     'lemon-model/buffer/testing',
+    'lemon-model/progress/testing',
     'lemon-model/socket/testing',
+    'lemon-model/logtrace/testing',
 ];
+
+/** Testing subpath helpers that must never leak into the root barrel. */
+const testingOnlyExports = ['runGenAIStreamNetworkLoop', 'runProgressLoop', 'runLogTraceLoop'];
 
 /** Return runtime export names that should be shared between CommonJS and ESM. */
 const getPublicExportNames = loaded => {
@@ -58,8 +63,16 @@ const checkESM = async contracts => {
 };
 
 /** Run both module-system checks as one publish-time smoke test. */
+/** Assert testing-only helpers stay out of the root barrel (production bundles must not include the simulator). */
+const assertTestingExcludedFromRoot = contracts => {
+    const root = contracts.find(contract => contract.moduleName === 'lemon-model');
+    const leaked = testingOnlyExports.filter(name => root.exportNames.includes(name));
+    if (leaked.length) throw new Error(`root barrel leaks testing exports: ${leaked.join(', ')}`);
+};
+
 (async () => {
     const contracts = loadCommonJSContracts();
+    assertTestingExcludedFromRoot(contracts);
     await checkESM(contracts);
     console.log('package exports smoke test passed');
 })().catch(error => {
