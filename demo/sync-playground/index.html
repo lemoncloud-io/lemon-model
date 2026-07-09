@@ -1,0 +1,356 @@
+<!doctype html>
+<!--
+  sync playground - browser verification tool for the L3/L4 sync machine (docs/model-sync-client/06-playground.md).
+  - runs entirely in the browser over the Peer simulator (no server, no bundler); a real-socket
+    client (URL) can be added as an observation-only instance.
+  - requires `npm run build` first (imports ../../dist/esm directly), then serve the REPO ROOT:
+      npx serve .            # or: python3 -m http.server
+      open http://localhost:3000/demo/sync-playground/
+  - NOT part of the npm package (`files` whitelists dist/** only).
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
+<title>sync playground — lemon-model</title>
+<style>
+  :root {
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --bg: oklch(0.968 0.005 250);
+    --surface: oklch(0.995 0.002 250);
+    --surface-2: oklch(0.982 0.004 250);
+    --text: oklch(0.30 0.015 255);
+    --muted: oklch(0.52 0.012 255);
+    --faint: oklch(0.66 0.010 255);
+    --line: oklch(0.905 0.006 255);
+    --line-strong: oklch(0.83 0.008 255);
+    --ok: oklch(0.56 0.13 152); --ok-bg: oklch(0.945 0.045 152);
+    --skip: oklch(0.62 0.12 74); --skip-bg: oklch(0.955 0.055 82);
+    --info: oklch(0.55 0.14 258); --info-bg: oklch(0.945 0.040 258);
+    --err: oklch(0.55 0.17 26); --err-bg: oklch(0.955 0.050 26);
+    --shadow: 0 1px 2px oklch(0.30 0.02 255 / 0.05), 0 8px 24px oklch(0.30 0.02 255 / 0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: oklch(0.185 0.012 262);
+      --surface: oklch(0.225 0.014 262);
+      --surface-2: oklch(0.262 0.014 262);
+      --text: oklch(0.925 0.008 262);
+      --muted: oklch(0.66 0.012 262);
+      --faint: oklch(0.50 0.012 262);
+      --line: oklch(0.315 0.012 262);
+      --line-strong: oklch(0.40 0.014 262);
+      --ok: oklch(0.74 0.14 152); --ok-bg: oklch(0.33 0.058 152);
+      --skip: oklch(0.80 0.12 82); --skip-bg: oklch(0.35 0.060 78);
+      --info: oklch(0.74 0.13 258); --info-bg: oklch(0.34 0.058 260);
+      --err: oklch(0.72 0.15 26); --err-bg: oklch(0.35 0.075 26);
+      --shadow: 0 1px 2px oklch(0 0 0 / 0.30), 0 10px 28px oklch(0 0 0 / 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: oklch(0.185 0.012 262);
+    --surface: oklch(0.225 0.014 262);
+    --surface-2: oklch(0.262 0.014 262);
+    --text: oklch(0.925 0.008 262);
+    --muted: oklch(0.66 0.012 262);
+    --faint: oklch(0.50 0.012 262);
+    --line: oklch(0.315 0.012 262);
+    --line-strong: oklch(0.40 0.014 262);
+    --ok: oklch(0.74 0.14 152); --ok-bg: oklch(0.33 0.058 152);
+    --skip: oklch(0.80 0.12 82); --skip-bg: oklch(0.35 0.060 78);
+    --info: oklch(0.74 0.13 258); --info-bg: oklch(0.34 0.058 260);
+    --err: oklch(0.72 0.15 26); --err-bg: oklch(0.35 0.075 26);
+    --shadow: 0 1px 2px oklch(0 0 0 / 0.30), 0 10px 28px oklch(0 0 0 / 0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: oklch(0.968 0.005 250);
+    --surface: oklch(0.995 0.002 250);
+    --surface-2: oklch(0.982 0.004 250);
+    --text: oklch(0.30 0.015 255);
+    --muted: oklch(0.52 0.012 255);
+    --faint: oklch(0.66 0.010 255);
+    --line: oklch(0.905 0.006 255);
+    --line-strong: oklch(0.83 0.008 255);
+    --ok: oklch(0.56 0.13 152); --ok-bg: oklch(0.945 0.045 152);
+    --skip: oklch(0.62 0.12 74); --skip-bg: oklch(0.955 0.055 82);
+    --info: oklch(0.55 0.14 258); --info-bg: oklch(0.945 0.040 258);
+    --err: oklch(0.55 0.17 26); --err-bg: oklch(0.955 0.050 26);
+    --shadow: 0 1px 2px oklch(0.30 0.02 255 / 0.05), 0 8px 24px oklch(0.30 0.02 255 / 0.05);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+  @keyframes sincePulse { 0%, 100% { box-shadow: 0 0 0 0 var(--skip-bg); } 50% { box-shadow: 0 0 0 4px var(--skip-bg); } }
+  @media (prefers-reduced-motion: reduce) { .judge-row, mark.since { animation: none !important; } }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  .app { max-width: 1380px; margin: 0 auto; padding: 22px 26px 30px; }
+
+  /* ---- header ---- */
+  header { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-bottom: 6px; }
+  .brand { flex: 1; min-width: 260px; }
+  .brand-row { display: flex; align-items: center; gap: 11px; }
+  .brand-dot { width: 11px; height: 11px; border-radius: 3px; background: var(--ok); }
+  .brand h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand .tag { font-size: 11px; color: var(--faint); border: 1px solid var(--line); border-radius: 5px; padding: 1px 7px; }
+  .brand p { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.55; max-width: 640px; }
+  .legend { display: flex; align-items: center; gap: 12px; font-size: 11px; color: var(--muted); }
+  .legend .sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: baseline; }
+
+  /* ---- shared atoms ---- */
+  .uc { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 11px; box-shadow: var(--shadow); }
+  .btn { font-family: var(--mono); font-size: 11.5px; padding: 6px 11px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface-2); color: var(--text); cursor: pointer; }
+  .btn:hover { border-color: var(--faint); }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  .btn:focus-visible, .seg button:focus-visible { outline: 2px solid var(--info); outline-offset: 1px; }
+  .btn.danger { border-color: var(--err); background: transparent; color: var(--err); }
+  .btn.small { font-size: 11px; padding: 3px 9px; border-radius: 6px; }
+  .btn.toggle-on { background: var(--err-bg); color: var(--err); border-color: var(--err); font-weight: 600; }
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+  .seg button { font-family: var(--mono); font-size: 12px; padding: 6px 12px; border: none; background: var(--surface); color: var(--muted); cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--info-bg); color: var(--info); font-weight: 600; }
+  .chip { font-size: 10.5px; padding: 2px 9px; border-radius: 20px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); }
+  .chip.pending { color: var(--skip); background: var(--skip-bg); border-color: transparent; font-weight: 600; }
+  input[type="text"], input[type="number"] { font-family: var(--mono); font-size: 12px; padding: 5px 7px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface-2); color: var(--text); }
+  input[type="number"] { width: 60px; text-align: right; }
+  .warnline { display: flex; gap: 7px; align-items: flex-start; font-size: 11px; color: var(--skip); line-height: 1.5; }
+
+  /* ---- 3-column board ---- */
+  .board { display: grid; grid-template-columns: minmax(310px, 0.92fr) minmax(300px, 0.86fr) minmax(380px, 1.14fr); gap: 18px; align-items: start; margin-top: 20px; }
+  @media (max-width: 1150px) { .board { grid-template-columns: 1fr; } }
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .col-head { display: flex; align-items: baseline; gap: 9px; }
+  .col-head .name { font-size: 12px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; }
+  .col-head .role { font-size: 11px; }
+  .col-head .arrow { margin-left: auto; font-size: 18px; color: var(--faint); }
+
+  .panel-pad { padding: 15px; display: flex; flex-direction: column; gap: 14px; }
+  .ctl-row { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+  .fault-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); }
+  .fault-row label { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 11px; color: var(--muted); }
+  #presetStrip { display: flex; flex-wrap: wrap; gap: 6px; }
+  #presetStrip .btn .num { color: var(--faint); font-size: 10px; margin-right: 6px; }
+
+  /* ---- tables ---- */
+  .tbl-card { overflow: hidden; }
+  .tbl-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tbl-head .grow { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  thead tr { background: var(--surface-2); }
+  th { text-align: left; padding: 8px 14px; font-weight: 600; color: var(--muted); font-size: 11px; }
+  th.num, td.num { text-align: right; }
+  td { padding: 8px 14px; border-top: 1px solid var(--line); color: var(--text); white-space: nowrap; }
+  td input[type="number"] { width: 62px; padding: 4px 6px; border-color: var(--line); }
+  td .btn { margin-left: 5px; }
+  tr.applied td { background: var(--ok-bg); }
+  tr.applied td:first-child::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); margin-right: 7px; vertical-align: 2px; }
+  .table-wrap { overflow-x: auto; }
+
+  /* ---- wire timeline ---- */
+  .wire-panel { padding: 16px 15px 8px; }
+  .wire-panel .head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  #wireLog { max-height: 560px; overflow-y: auto; }
+  .wire-row { display: grid; grid-template-columns: 26px 1fr; gap: 11px; }
+  .wire-row .rail { display: flex; justify-content: center; position: relative; }
+  .wire-row .rail::before { content: ""; position: absolute; top: 11px; bottom: -6px; width: 2px; background: var(--line); }
+  .wire-row .dir { z-index: 1; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--muted); color: var(--muted); font-size: 12px; line-height: 1; }
+  .wire-row .dir.up { border-color: var(--info); color: var(--info); }
+  .wire-row .dir.down { border-color: var(--ok); color: var(--ok); }
+  .wire-row.err .dir { border-color: var(--err); color: var(--err); }
+  .wire-row .body { padding-bottom: 14px; min-width: 0; }
+  .wire-row .l1 { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .wire-row .cli { font-size: 10px; font-weight: 700; color: var(--info); }
+  .wire-row .ts { color: var(--faint); font-size: 10.5px; font-variant-numeric: tabular-nums; min-width: 42px; }
+  .wire-row .ty { font-size: 10.5px; padding: 1px 7px; border-radius: 5px; background: var(--surface-2); color: var(--muted); font-weight: 600; }
+  .wire-row .ty.t-pull { background: var(--info-bg); color: var(--info); }
+  .wire-row .ty.t-result { background: var(--ok-bg); color: var(--ok); }
+  .wire-row .ty.t-event { background: var(--skip-bg); color: var(--skip); }
+  .wire-row .ty.t-error { background: var(--err-bg); color: var(--err); }
+  .wire-row .mid { color: var(--muted); font-size: 10.5px; }
+  .wire-row mark.since { margin-left: auto; font-size: 10px; background: var(--skip-bg); color: var(--skip); border-radius: 5px; padding: 1px 7px; font-weight: 600; animation: sincePulse 2.2s ease-in-out infinite; }
+  .wire-row .l2 { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; }
+  .wire-row .pay { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wire-row .sz { margin-left: auto; color: var(--faint); font-size: 10.5px; flex-shrink: 0; }
+  .wire-row.err .pay { color: var(--err); }
+
+  /* ---- client cards ---- */
+  .cli-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .cli-controls input[type="text"] { flex: 1; min-width: 130px; }
+  #clientList { display: flex; flex-direction: column; gap: 14px; max-height: 900px; overflow-y: auto; }
+  .client-card { background: var(--surface); border: 1px solid var(--line); border-radius: 11px; box-shadow: var(--shadow); padding: 14px 15px; display: flex; flex-direction: column; gap: 12px; }
+  .client-card .cc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .client-card .cc-head b { font-size: 13px; }
+  .client-card .footnote { font-size: 10.5px; color: var(--faint); }
+  .client-card .spacer { flex: 1; }
+  .client-card .wm { background: var(--surface-2); border-radius: 9px; padding: 10px 12px; }
+  .client-card .wm .cur { display: flex; align-items: baseline; gap: 10px; }
+  .client-card .wm .cur b { font-size: 26px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .client-card .wm .cur span { font-size: 11px; color: var(--muted); }
+  .client-card .wm .hist { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
+  .client-card .wm .hist .step { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 4px 9px; }
+  .client-card .wm .hist .step .v { font-size: 12.5px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+  .client-card .wm .hist .step .m { font-size: 9.5px; color: var(--faint); }
+
+  .judge { display: flex; flex-direction: column; gap: 8px; }
+  .cc-judge { max-height: 240px; overflow-y: auto; }
+  .judge-row { display: grid; grid-template-columns: auto 1fr; gap: 11px; padding: 9px 12px; border-radius: 9px; background: var(--surface-2); border-left: 3px solid var(--muted); animation: slideIn 0.34s ease both; }
+  .judge-row.ok { background: var(--ok-bg); border-left-color: var(--ok); }
+  .judge-row.skip { background: var(--skip-bg); border-left-color: var(--skip); }
+  .judge-row.info { background: var(--info-bg); border-left-color: var(--info); }
+  .judge-row .verdict { font-size: 11.5px; font-weight: 700; align-self: center; white-space: nowrap; }
+  .judge-row.ok .verdict { color: var(--ok); }
+  .judge-row.skip .verdict { color: var(--skip); }
+  .judge-row.info .verdict { color: var(--info); }
+  .judge-row .jbody { min-width: 0; }
+  .judge-row .l1 { display: flex; align-items: baseline; gap: 8px; }
+  .judge-row .id { font-size: 11px; font-weight: 600; color: var(--text); }
+  .judge-row .src { font-size: 10.5px; color: var(--muted); }
+  .judge-row .why { font-size: 11.5px; color: var(--muted); margin-top: 3px; line-height: 1.5; overflow-wrap: anywhere; }
+
+  .errline { display: none; gap: 8px; align-items: center; padding: 9px 12px; border-radius: 8px; background: var(--err-bg); color: var(--err); font-size: 11.5px; }
+  .errline:not(:empty) { display: flex; }
+
+  footer { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; font-size: 11px; color: var(--faint); line-height: 1.55; max-width: 900px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="brand-row">
+        <div class="brand-dot"></div>
+        <h1>sync playground</h1>
+        <span class="tag">lemon-model · 관측 도구</span>
+      </div>
+      <p>서버 대역의 변경이 WIRE를 거쳐 클라이언트 스토어에 반영된다. 판정 로그가 주인공 — 무엇이 반영되고 무시됐는지, 그 사유까지.</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="legend">
+        <span><span class="sw" style="background:var(--ok)"></span>반영</span>
+        <span><span class="sw" style="background:var(--skip)"></span>무시</span>
+        <span><span class="sw" style="background:var(--info)"></span>info</span>
+      </div>
+      <span class="chip pending" id="pendingChip" title="L3 pendingCount 합계">pending 0</span>
+      <button class="btn" id="themeBtn">다크 모드</button>
+    </div>
+  </header>
+
+  <div class="board">
+
+    <!-- ============ COLUMN 1 · SERVER BAND ============ -->
+    <section class="col" aria-label="서버 대역">
+      <div class="col-head">
+        <span class="name">Server Band</span>
+        <span class="role" style="color:var(--ok)">source</span>
+        <span class="arrow">→</span>
+      </div>
+
+      <div class="card panel-pad">
+        <div>
+          <div class="uc" style="margin-bottom:6px;">비교 축 (axis)</div>
+          <div class="seg" id="axisSeg" role="group" aria-label="판정 축">
+            <button data-axis="updatedAt">updatedAt</button>
+            <button data-axis="seq" class="on">seq</button>
+          </div>
+          <div class="warnline" style="margin-top:8px;"><span>⚠</span><span>축 변경 시 close 후 재등록 · 로컬 상태 리셋</span></div>
+        </div>
+
+        <div class="ctl-row">
+          <div>
+            <div class="uc" style="margin-bottom:6px;">ticker</div>
+            <div class="seg" id="tickerSeg" role="group" aria-label="ticker">
+              <button data-ms="0" class="on">off</button>
+              <button data-ms="1000">1s</button>
+              <button data-ms="5000">5s</button>
+            </div>
+          </div>
+          <button class="btn" id="tickBtn">tick</button>
+        </div>
+
+        <div>
+          <div class="uc" style="margin-bottom:7px;">프리셋 시나리오 <sup>1</sup></div>
+          <div id="presetStrip">
+            <button class="btn" data-preset="e2e"><span class="num">01#1</span>단방향 e2e</button>
+            <button class="btn" data-preset="judgement"><span class="num">01#2</span>판정 규칙</button>
+            <button class="btn" data-preset="pullError"><span class="num">01#3</span>pull 오류</button>
+            <button class="btn" data-preset="seqAxis"><span class="num">05#2</span>seq 축</button>
+            <button class="btn" data-preset="undefinedVersion"><span class="num">05#3</span>undefined 판정</button>
+            <button class="btn" data-preset="safetyNet"><span class="num">05#4</span>안전망</button>
+            <button class="btn" data-preset="tombstone"><span class="num">05#5</span>tombstone</button>
+          </div>
+        </div>
+
+        <div class="fault-row">
+          <button class="btn" id="failToggle">다음 pull에 error 응답</button>
+          <button class="btn" id="hangToggle">다음 pull 무응답 (5s)</button>
+          <label>page size <input type="number" id="pageSizeInput" min="1" value="1" /></label>
+        </div>
+      </div>
+
+      <div class="card tbl-card">
+        <div class="tbl-head">
+          <span class="uc">server store</span>
+          <div class="grow">
+            <input type="text" id="newIdInput" placeholder="id" style="width:80px;" />
+            <input type="number" id="newVerInput" placeholder="seq" />
+            <button class="btn small" id="addModelBtn">+ 모델</button>
+            <button class="btn small danger" id="tombNoVerBtn">tombstone (축값 없이) ²</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>model</th><th class="num" id="srvVerTh">seq</th><th class="num">percent</th><th class="num">actions</th></tr></thead>
+            <tbody id="srvBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ COLUMN 2 · WIRE ============ -->
+    <section class="col" aria-label="wire 로그">
+      <div class="col-head">
+        <span class="name">Wire</span>
+        <span class="role" style="color:var(--info)">transport</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="card wire-panel">
+        <div class="head">
+          <span class="uc">transport log</span>
+          <span class="uc" style="margin-left:auto; text-transform:none;">↑ 전송 · ↓ 수신 · 상대 시간</span>
+        </div>
+        <div id="wireLog"></div>
+      </div>
+    </section>
+
+    <!-- ============ COLUMN 3 · CLIENTS ============ -->
+    <section class="col" aria-label="클라이언트">
+      <div class="col-head">
+        <span class="name">Clients</span>
+        <span class="role" style="color:var(--skip)">converge</span>
+        <span class="chip" style="margin-left:auto;">판정 사유는 어댑터 재실행 추론</span>
+      </div>
+      <div class="cli-controls">
+        <button class="btn" id="addClientBtn">+ 클라이언트</button>
+        <input type="text" id="wsUrlInput" placeholder="wss://…" />
+        <button class="btn" id="addWsBtn">실소켓 연결</button>
+      </div>
+      <div id="clientList"></div>
+    </section>
+  </div>
+
+  <footer>
+    <div><sup>1</sup> 프리셋 = 검증 시나리오 재생 (01·05 문서) · 05#3은 incoming-undefined 절반만 — local-undefined 분기는 spec 전용.</div>
+    <div><sup>2</sup> tombstone은 축값이 있어야 반영 — 누락 시 판정에서 삭제가 무시된다 (서버 계약 전제 3).</div>
+    <div>모든 시각 요소는 lemon-model 공개 계약의 관측값(onChange · wire envelope · 어댑터 순수 함수)에서 유도된다 — docs/model-sync-client/06-playground.md</div>
+  </footer>
+</div>
+<script type="module" src="./playground.js"></script>
+</body>
+</html>
