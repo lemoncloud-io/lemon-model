@@ -27,6 +27,7 @@ const KIND_HINT_CLASS: Partial<Record<TimelineKind, string>> = {
     drop: 'kind-drop',
     corrupt: 'kind-corrupt',
     expired: 'kind-expired',
+    duplicate: 'kind-duplicate',
 };
 
 const formatTime = (at: number): string => {
@@ -72,7 +73,12 @@ const TimelineLog = ({ events }: TimelineLogProps) => {
                         </span>
                         <span className="col-direction">{DIRECTION_ARROW[event.direction]}</span>
                         <span className="col-kind">{event.kind}</span>
-                        <span className="col-detail">{event.detail}</span>
+                        <span className="col-detail">
+                            {typeof event.meta?.socketIndex === 'number' && (
+                                <span className="socket-chip">S{event.meta?.socketIndex}</span>
+                            )}
+                            {event.detail}
+                        </span>
                     </div>
                 ))}
             </div>

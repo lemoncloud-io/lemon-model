@@ -4,7 +4,7 @@
  * observable event (tap/logger/onError) into `TimelineEvent`s. Reconnect recreates the whole stack
  * (01-spec key decision 5); `ping` is intentionally left unimplemented (mode 'peer' only).
  */
-import type { SocketLogEntry, SocketLogger } from '@socket/types';
+import type { NetworkSupportable, SocketLogEntry, SocketLogger } from '@socket/types';
 import {
     createFilteredNetwork,
     createOwnedWebSocketNetwork,
@@ -31,8 +31,14 @@ export interface CreateWsSessionOptions {
     transportOptions?: { cleanupIntervalMs?: number; partialTtlMs?: number };
 }
 
+/** `VerifierSession` plus the attach point the Sockets-section extension (multi-session.ts) needs */
+export interface WsVerifierSession extends VerifierSession {
+    /** the primary owned network, before the filtered/conditioned/transport decorators; undefined before connect()/after close() */
+    getPrimaryNetwork(): NetworkSupportable | undefined;
+}
+
 /** create a mode 'ws' `VerifierSession` over a real WebSocket */
-export const createWsSession = (options: CreateWsSessionOptions): VerifierSession => {
+export const createWsSession = (options: CreateWsSessionOptions): WsVerifierSession => {
     const { id, url, store } = options;
     const cleanupIntervalMs = options.transportOptions?.cleanupIntervalMs ?? 1000;
     const partialTtlMs = options.transportOptions?.partialTtlMs ?? 10000;
@@ -198,6 +204,8 @@ export const createWsSession = (options: CreateWsSessionOptions): VerifierSessio
             store.updateConnection(id, { condition });
             push({ direction: 'sys', kind: 'configure', severity: 'normal', detail: conditionDetail(condition) });
         },
+
+        getPrimaryNetwork: () => owned,
     };
 };
 

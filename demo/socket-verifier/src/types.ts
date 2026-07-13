@@ -19,7 +19,8 @@ export type TimelineKind =
     | 'expired'
     | 'drop'
     | 'corrupt'
-    | 'error';
+    | 'error'
+    | 'duplicate';
 
 /** one entry of the shared timeline; `seq` is the monotonic sort key */
 export interface TimelineEvent {
@@ -66,13 +67,21 @@ export const DEFAULT_VERIFIER_CONDITION: VerifierCondition = {
     corruptRate: 0,
 };
 
+/** one row of the Sockets section (mode 'ws' only); index 0 is always the main socket (S0) */
+export interface SocketRowState {
+    /** 0 = main socket, 1..N = backups in configuration order */
+    index: number;
+    url: string;
+    status: 'connecting' | 'open' | 'closing' | 'closed';
+}
+
 /** panel/connection state (02-design ConnectionState table) */
 export interface ConnectionState {
     /** panel identifier, shared with TimelineEvent.connectionId */
     id: string;
     /** verification path: in-memory peer vs real websocket */
     mode: 'peer' | 'ws';
-    /** reflects the underlying readyState */
+    /** reflects the underlying readyState; mode 'ws' always follows the main socket (S0) */
     status: 'connecting' | 'open' | 'closing' | 'closed';
     /** server-issued connectionId (mode 'ws' only) */
     remoteConnectionId?: string;
@@ -80,6 +89,8 @@ export interface ConnectionState {
     condition: VerifierCondition;
     /** transport.pendingCount snapshot (reassembly in-flight count) */
     pendingCount: number;
+    /** mode 'ws' only: Sockets section rows (S0 + backups); populated once the multi-session extension attaches */
+    sockets?: SocketRowState[];
 }
 
 /** minimal common surface of both sessions (02-design module decomposition); `ping` exists on mode 'peer' only */

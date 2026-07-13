@@ -160,6 +160,62 @@ input:disabled {
     color: #9aa1ad;
 }
 
+.sockets-section {
+    border: 1px solid #2a2e37;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+}
+
+.sockets-header {
+    color: #9aa1ad;
+    font-size: 12px;
+}
+
+.socket-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.socket-url {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #9aa1ad;
+}
+
+.socket-row button {
+    padding: 2px 6px;
+    font-size: 11px;
+}
+
+.socket-add-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.socket-add-row input {
+    flex: 1;
+}
+
+.socket-chip {
+    display: inline-block;
+    padding: 1px 5px;
+    margin-right: 6px;
+    border-radius: 3px;
+    background: #2a2e37;
+    color: #9aa1ad;
+    font-size: 10px;
+    font-weight: 700;
+}
+
 .condition-fields {
     border: 1px solid #2a2e37;
     border-radius: 4px;
@@ -307,4 +363,9 @@ input:disabled {
 
 .timeline-row.kind-expired {
     background: #3a1f1f;
+}
+
+.timeline-row.kind-duplicate {
+    background: #3a3320;
+    color: #ffe066;
 }

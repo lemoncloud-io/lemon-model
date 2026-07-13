@@ -76,6 +76,7 @@ const App = () => {
                             connection={connection}
                             session={sessionsRef.current.get(connection.id)!}
                             store={store}
+                            url={WS_URL}
                             onRemove={() => removePanel(connection.id)}
                         />
                     ))}

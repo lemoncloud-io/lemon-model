@@ -1,13 +1,17 @@
 /** single connection/panel control surface: status, condition sliders, payload send/post/ping, lifecycle buttons (03-plan task 7) */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ConnectionState, VerifierCondition, VerifierSession } from './types';
 import type { VerifierStore } from './verifier-store';
+import type { WsVerifierSession } from './ws-session';
+import { createMultiSession, type MultiSession } from './multi-session';
 import { connectionColor } from './TimelineLog';
 
 interface ConnectionPanelProps {
     connection: ConnectionState;
     session: VerifierSession;
     store: VerifierStore;
+    /** mode 'ws' real WebSocket url; also the S0 row's display url and the default for "+ Add Socket" */
+    url: string;
     onRemove: () => void;
 }
 
@@ -22,9 +26,31 @@ const parsePayload = (text: string): unknown => {
     }
 };
 
-const ConnectionPanel = ({ connection, session, store, onRemove }: ConnectionPanelProps) => {
+const ConnectionPanel = ({ connection, session, store, url, onRemove }: ConnectionPanelProps) => {
     const [payloadText, setPayloadText] = useState(DEFAULT_PAYLOAD);
+    const [newSocketUrl, setNewSocketUrl] = useState(url);
+    const [socketPending, setSocketPending] = useState(false);
     const { condition, mode } = connection;
+    const wsSession = mode === 'ws' ? (session as WsVerifierSession) : undefined;
+    const multiSessionRef = useRef<MultiSession | null>(null);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            multiSessionRef.current?.detach();
+            multiSessionRef.current = null;
+        };
+    }, []);
+
+    /** attach the Sockets-section session once the panel's main socket is open (no manual toggle) */
+    useEffect(() => {
+        if (!wsSession || connection.status !== 'open' || multiSessionRef.current) return;
+        const primary = wsSession.getPrimaryNetwork();
+        if (!primary) return;
+        multiSessionRef.current = createMultiSession({ id: connection.id, store, primary, mainUrl: url });
+    }, [wsSession, connection.status]);
 
     const notifyFailure = (action: string, error: unknown) => {
         store.pushEvent({
@@ -34,6 +60,11 @@ const ConnectionPanel = ({ connection, session, store, onRemove }: ConnectionPan
             severity: 'error',
             detail: `${action} failed: ${(error as any)?.message ?? error}`,
         });
+    };
+
+    const teardownMulti = () => {
+        multiSessionRef.current?.detach();
+        multiSessionRef.current = null;
     };
 
     const patchCondition = (patch: Partial<VerifierCondition>) => {
@@ -72,6 +103,7 @@ const ConnectionPanel = ({ connection, session, store, onRemove }: ConnectionPan
 
     const handleClose = () => {
         try {
+            teardownMulti();
             session.close();
         } catch (error) {
             notifyFailure('close', error);
@@ -80,11 +112,58 @@ const ConnectionPanel = ({ connection, session, store, onRemove }: ConnectionPan
 
     const handleReconnect = async () => {
         try {
+            teardownMulti(); // S0 is about to be torn down/recreated - the multi composite would go stale
             await session.reconnect();
         } catch (error) {
             notifyFailure('reconnect', error);
         }
     };
+
+    const handleAddSocket = async () => {
+        if (!multiSessionRef.current) return;
+        setSocketPending(true);
+        try {
+            await multiSessionRef.current.addSocket(newSocketUrl || url);
+        } catch (error) {
+            notifyFailure('addSocket', error);
+        } finally {
+            if (isMountedRef.current) setSocketPending(false);
+        }
+    };
+
+    const handleRemoveSocket = (index: number) => {
+        try {
+            multiSessionRef.current?.removeSocket(index);
+        } catch (error) {
+            notifyFailure(`removeSocket(S${index})`, error);
+        }
+    };
+
+    const handleCloseSocket = (index: number) => {
+        try {
+            multiSessionRef.current?.closeSocket(index);
+        } catch (error) {
+            notifyFailure(`closeSocket(S${index})`, error);
+        }
+    };
+
+    const handleSendOne = (index: number) => {
+        try {
+            multiSessionRef.current?.sendOne(index, parsePayload(payloadText));
+        } catch (error) {
+            notifyFailure(`sendOne(S${index})`, error);
+        }
+    };
+
+    const handleSendAll = () => {
+        try {
+            multiSessionRef.current?.sendAll(parsePayload(payloadText));
+        } catch (error) {
+            notifyFailure('sendAll', error);
+        }
+    };
+
+    const backupCount = (connection.sockets?.length ?? 1) - 1;
 
     return (
         <div className="connection-panel">
@@ -103,6 +182,36 @@ const ConnectionPanel = ({ connection, session, store, onRemove }: ConnectionPan
                 <div className="remote-id">remoteConnectionId: {connection.remoteConnectionId}</div>
             )}
             <div className="pending-count">pending: {connection.pendingCount}</div>
+
+            {mode === 'ws' && (
+                <div className="sockets-section">
+                    <div className="sockets-header">Sockets</div>
+                    {(connection.sockets ?? []).map(row => (
+                        <div key={row.index} className="socket-row">
+                            <span className="socket-chip">S{row.index}</span>
+                            <span className="socket-url" title={row.url}>
+                                {row.url}
+                            </span>
+                            <span className={`status-badge status-${row.status}`}>{row.status}</span>
+                            <button onClick={() => handleSendOne(row.index)}>Send</button>
+                            <button onClick={() => handleCloseSocket(row.index)}>Close</button>
+                            {row.index > 0 && <button onClick={() => handleRemoveSocket(row.index)}>Remove</button>}
+                        </div>
+                    ))}
+                    <div className="socket-add-row">
+                        <input
+                            type="text"
+                            value={newSocketUrl}
+                            disabled={socketPending}
+                            onChange={e => setNewSocketUrl(e.target.value)}
+                            placeholder="새 소켓 url (기본: 메인과 동일)"
+                        />
+                        <button onClick={handleAddSocket} disabled={socketPending}>
+                            + Add Socket
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <fieldset className="condition-fields">
                 <legend>조건</legend>
@@ -188,8 +297,17 @@ const ConnectionPanel = ({ connection, session, store, onRemove }: ConnectionPan
                 <button onClick={handlePing} disabled={!session.ping} title={!session.ping ? 'mode ws에는 ping이 없습니다' : ''}>
                     Ping
                 </button>
-                <button onClick={handleClose}>Close</button>
-                <button onClick={handleReconnect}>Reconnect</button>
+                {mode === 'ws' && (
+                    <button onClick={handleSendAll} disabled={backupCount < 1}>
+                        Send All
+                    </button>
+                )}
+                <button onClick={handleClose} disabled={socketPending}>
+                    Close
+                </button>
+                <button onClick={handleReconnect} disabled={socketPending}>
+                    Reconnect
+                </button>
             </div>
         </div>
     );
