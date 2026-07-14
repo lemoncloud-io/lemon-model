@@ -26,6 +26,7 @@ import {
     createJSONTransport,
     JSONTransportOptions,
     JSONTransportSupportable,
+    ReliableOptions,
     splitJSON,
 } from './transport';
 
@@ -39,8 +40,21 @@ export interface PeerOptions extends SocketNetworkOptions {
     networkFactory?: PeerNetworkFactory;
     /** structured logger for peer lifecycle and delivery events */
     logger?: SocketLogger;
-    /** enable JSON transport chunking for peer message envelopes sent by this peer */
+    /**
+     * enable JSON transport chunking for peer message envelopes sent by this peer.
+     * for `jsonTransport.reliable`, both the sending and receiving peer must opt in — an
+     * asymmetric setup surfaces as `json.reliable.mismatch` on the non-reliable side.
+     * onError pattern: `error instanceof JSONTransportReliableError` gives access to `error.tid`.
+     */
     jsonTransport?: boolean | JSONTransportOptions;
+    /**
+     * shortcut for `jsonTransport: { reliable: true }` — the recommended entry point for reliable
+     * delivery, equivalent to setting `reliable` on `jsonTransport` directly. truthy activates JSON
+     * transport chunking even when `jsonTransport` is otherwise unset. an explicit `jsonTransport.reliable`
+     * takes precedence over this shortcut when both are set. both the sending and receiving peer must
+     * opt in — an asymmetric setup surfaces as `json.reliable.mismatch` on the non-reliable side.
+     */
+    reliable?: boolean | ReliableOptions;
 }
 
 /** network creation context independent from peer instances. */
@@ -91,6 +105,8 @@ interface PeerLink {
     network: NetworkSupportable;
     transportOptions?: JSONTransportOptions;
     receiverTransport?: JSONTransportSupportable<any>;
+    /** reliable-on links merge sender+receiver into one instance — points at the same object as receiverTransport */
+    senderTransport?: JSONTransportSupportable<any>;
 }
 
 let peerNo = 0;
@@ -309,7 +325,14 @@ export class Peer<SendData = any, MessageData = any> implements PeerSupportable<
         this.logger = options?.logger ?? noopSocketLogger;
         this.id = options?.id ?? this.identityProvider.nextPeerId();
         this.networkOptions = asNetworkOptions(options);
-        this.jsonTransportOptions = asJSONTransportOptions(options?.jsonTransport, this.networkOptions.maxPacketBytes);
+        this.jsonTransportOptions = asJSONTransportOptions(
+            mergeReliableShortcut(options?.jsonTransport, options?.reliable, (top, nested) =>
+                this.log('warn', 'jsonTransport.reliable overrides top-level reliable shortcut', 'peer.constructor', {
+                    data: { reliable: top, jsonTransportReliable: nested },
+                }),
+            ),
+            this.networkOptions.maxPacketBytes,
+        );
         this.log('debug', 'peer created', 'peer.constructor');
     }
 
@@ -380,18 +403,43 @@ export class Peer<SendData = any, MessageData = any> implements PeerSupportable<
         const clientTransportOptions = this.jsonTransportOptions;
         const clientId = server.accept(this, downlink, serverTransportOptions);
 
-        server.attachClientReceiverTransport(
+        /**
+         * connect() wiring — docs/specs/reliable-chunk-transport/02-design.md "Peer 통합" 배선표 그대로:
+         * | instance | readNetwork | writeNetwork | receiver | sender       | clientId  | localTransportOptions  | remoteTransportOptions |
+         * |----------|-------------|--------------|----------|--------------|-----------|------------------------|-------------------------|
+         * | server   | uplink      | downlink     | server   | this(client) | clientId  | serverTransportOptions | clientTransportOptions |
+         * | client   | downlink    | uplink       | this     | server       | undefined | clientTransportOptions | serverTransportOptions |
+         * flipping any column here reproduces an error-free hang, not a thrown error.
+         */
+        server.attachClientTransport(
             clientId,
-            Peer.attachReceiver(uplink, server, this, clientId, clientTransportOptions),
+            Peer.attachTransport(
+                uplink,
+                downlink,
+                server,
+                this,
+                clientId,
+                serverTransportOptions,
+                clientTransportOptions,
+            ),
         );
-        const serverReceiverTransport = Peer.attachReceiver(downlink, this, server, undefined, serverTransportOptions);
+        const clientTransport = Peer.attachTransport(
+            downlink,
+            uplink,
+            this,
+            server,
+            undefined,
+            clientTransportOptions,
+            serverTransportOptions,
+        );
 
         this.server = {
             peer: server as unknown as Peer<any, any>,
             clientId,
             network: uplink,
             transportOptions: clientTransportOptions,
-            receiverTransport: serverReceiverTransport,
+            receiverTransport: clientTransport,
+            senderTransport: clientTransportOptions?.reliable ? clientTransport : undefined,
         };
         this.assignedClientId = clientId;
         this.log('info', 'peer connected', 'peer.connect', {
@@ -531,9 +579,11 @@ export class Peer<SendData = any, MessageData = any> implements PeerSupportable<
         return clientId;
     }
 
-    private attachClientReceiverTransport(clientId: string, transport?: JSONTransportSupportable<any>): void {
+    private attachClientTransport(clientId: string, transport?: JSONTransportSupportable<any>): void {
         const link = this.clients.get(clientId);
-        if (link) link.receiverTransport = transport;
+        if (!link) return;
+        link.receiverTransport = transport;
+        link.senderTransport = link.transportOptions?.reliable ? transport : undefined;
     }
 
     private detachClient(clientId?: string): void {
@@ -557,6 +607,8 @@ export class Peer<SendData = any, MessageData = any> implements PeerSupportable<
         });
         link.receiverTransport?.detach?.();
         link.receiverTransport = undefined;
+        link.senderTransport?.detach?.(); //! idempotent — reliable links share receiverTransport's instance
+        link.senderTransport = undefined;
         link.network.close();
     }
 
@@ -575,25 +627,34 @@ export class Peer<SendData = any, MessageData = any> implements PeerSupportable<
         client.closeLink(clientLink);
         server.closeLink(serverLink);
 
+        const clientTransportOptions = client.jsonTransportOptions;
+        const serverTransportOptions = server.jsonTransportOptions;
+
         clientLink.network = uplink;
-        clientLink.transportOptions = client.jsonTransportOptions;
-        clientLink.receiverTransport = Peer.attachReceiver(
+        clientLink.transportOptions = clientTransportOptions;
+        clientLink.receiverTransport = Peer.attachTransport(
             downlink,
+            uplink,
             client,
             server,
             undefined,
-            server.jsonTransportOptions,
+            clientTransportOptions,
+            serverTransportOptions,
         );
+        clientLink.senderTransport = clientTransportOptions?.reliable ? clientLink.receiverTransport : undefined;
 
         serverLink.network = downlink;
-        serverLink.transportOptions = server.jsonTransportOptions;
-        serverLink.receiverTransport = Peer.attachReceiver(
+        serverLink.transportOptions = serverTransportOptions;
+        serverLink.receiverTransport = Peer.attachTransport(
             uplink,
+            downlink,
             server,
             client,
             clientId,
-            client.jsonTransportOptions,
+            serverTransportOptions,
+            clientTransportOptions,
         );
+        serverLink.senderTransport = serverTransportOptions?.reliable ? serverLink.receiverTransport : undefined;
 
         client.assignedClientId = clientId;
         client.log('info', 'peer link networks replaced', 'peer.reconnectPair', {
@@ -608,17 +669,27 @@ export class Peer<SendData = any, MessageData = any> implements PeerSupportable<
         });
     }
 
-    private static attachReceiver(
-        network: NetworkSupportable,
+    /**
+     * reliable-on locals merge write+read networks into one instance (Peer 통합 절):
+     * writeNetwork carries send()+ack/nack/error, receiveNetwork(=readNetwork) carries the onMessage subscription.
+     * off (remoteTransportOptions only, or neither) keeps the existing receiver-only/raw paths untouched.
+     */
+    private static attachTransport(
+        readNetwork: NetworkSupportable,
+        writeNetwork: NetworkSupportable,
         receiver: Peer<any, any>,
         sender: Peer<any, any>,
         clientId: string | undefined,
-        transportOptions?: JSONTransportOptions,
+        localTransportOptions?: JSONTransportOptions,
+        remoteTransportOptions?: JSONTransportOptions,
+        logger?: SocketLogger,
     ): JSONTransportSupportable<any> | undefined {
-        if (transportOptions) {
-            const transport = createJSONTransport<SocketMessage<any>>(network, {
-                ...transportOptions,
-                logger: transportOptions.logger ?? receiver.logger,
+        if (localTransportOptions?.reliable) {
+            const reliable = localTransportOptions.reliable === true ? {} : localTransportOptions.reliable;
+            const transport = createJSONTransport<SocketMessage<any>>(writeNetwork, {
+                ...localTransportOptions,
+                reliable: { ...reliable, receiveNetwork: readNetwork },
+                logger: localTransportOptions.logger ?? logger ?? receiver.logger,
             });
             transport.onMessage(message =>
                 receiver.dispatch(message, sender, clientId).catch(e => receiver.rejectPending(message?.mid, e)),
@@ -627,7 +698,7 @@ export class Peer<SendData = any, MessageData = any> implements PeerSupportable<
                 receiver.log('error', 'peer transport error', 'peer.transport', {
                     remotePeerId: sender.id,
                     clientId,
-                    networkId: getNetworkId(network),
+                    networkId: getNetworkId(writeNetwork),
                     error,
                     data: { scope: context.scope },
                 });
@@ -636,7 +707,28 @@ export class Peer<SendData = any, MessageData = any> implements PeerSupportable<
             return transport;
         }
 
-        network.onMessage(data => receiver.receiveNetworkData(data, sender, clientId));
+        if (remoteTransportOptions) {
+            const transport = createJSONTransport<SocketMessage<any>>(readNetwork, {
+                ...remoteTransportOptions,
+                logger: remoteTransportOptions.logger ?? receiver.logger,
+            });
+            transport.onMessage(message =>
+                receiver.dispatch(message, sender, clientId).catch(e => receiver.rejectPending(message?.mid, e)),
+            );
+            transport.onError((error, context) => {
+                receiver.log('error', 'peer transport error', 'peer.transport', {
+                    remotePeerId: sender.id,
+                    clientId,
+                    networkId: getNetworkId(readNetwork),
+                    error,
+                    data: { scope: context.scope },
+                });
+                receiver.emitError(error, { ...context, scope: `peer.transport.${context.scope}`, peer: receiver });
+            });
+            return transport;
+        }
+
+        readNetwork.onMessage(data => receiver.receiveNetworkData(data, sender, clientId));
         return undefined;
     }
 
@@ -709,7 +801,7 @@ export class Peer<SendData = any, MessageData = any> implements PeerSupportable<
         });
         const _deliver = async () => {
             try {
-                this.sendToLink(target, message);
+                await this.sendToLink(target, message);
             } catch (e) {
                 this.log('error', 'peer publish failed', 'peer.publish', {
                     remotePeerId: target.peer.id,
@@ -856,7 +948,7 @@ export class Peer<SendData = any, MessageData = any> implements PeerSupportable<
                         type,
                         networkId: getNetworkId(link.network),
                     });
-                    this.sendToLink(link, { type, data, mid });
+                    await this.sendToLink(link, { type, data, mid });
                 }
             } catch (e) {
                 this.log('error', 'peer reply failed', 'peer.reply', {
@@ -871,7 +963,8 @@ export class Peer<SendData = any, MessageData = any> implements PeerSupportable<
         _deliver();
     }
 
-    private sendToLink<Data = any>(link: PeerLink, message: SocketMessage<Data>): void {
+    private sendToLink<Data = any>(link: PeerLink, message: SocketMessage<Data>): void | Promise<void> {
+        if (link.senderTransport) return link.senderTransport.send(message);
         if (link.transportOptions) {
             splitJSON(message, link.transportOptions).send(link.network);
         } else {
@@ -960,6 +1053,7 @@ export class SocketFactory {
             networkFactory: options?.networkFactory ?? this.options?.networkFactory,
             logger: options?.logger ?? this.options?.logger,
             jsonTransport: options?.jsonTransport ?? this.options?.jsonTransport,
+            reliable: options?.reliable ?? this.options?.reliable,
             id: options?.id ?? this.nextFactoryPeerId(options),
         });
         this.peers.set(peer.id, peer);
@@ -999,6 +1093,25 @@ const asNetworkOptions = (options?: SocketNetworkOptions): Required<SocketNetwor
     unordered: options?.unordered ?? true,
     maxPacketBytes: options?.maxPacketBytes ?? DEFAULT_MAX_PACKET_BYTES,
 });
+
+/**
+ * merges the `PeerOptions.reliable` shortcut into `jsonTransport` before resolution.
+ * off (`reliable` falsy) returns `jsonTransport` untouched — the shortcut path is inert unless used.
+ * an explicit `jsonTransport.reliable` wins over the shortcut when both are set; `onMismatch` fires
+ * when both are set to different values, so the caller can warn without duplicating this check.
+ */
+const mergeReliableShortcut = (
+    jsonTransport?: boolean | JSONTransportOptions,
+    reliable?: boolean | ReliableOptions,
+    onMismatch?: (top: boolean | ReliableOptions, nested: boolean | ReliableOptions) => void,
+): boolean | JSONTransportOptions | undefined => {
+    if (!reliable) return jsonTransport;
+    const transportOptions: JSONTransportOptions = jsonTransport && jsonTransport !== true ? jsonTransport : {};
+    if (transportOptions.reliable !== undefined && transportOptions.reliable !== reliable) {
+        onMismatch?.(reliable, transportOptions.reliable);
+    }
+    return { ...transportOptions, reliable: transportOptions.reliable ?? reliable };
+};
 
 const asJSONTransportOptions = (
     options?: boolean | JSONTransportOptions,

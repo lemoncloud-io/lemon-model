@@ -312,6 +312,82 @@ TODO: manifest paging is not implemented yet. If the manifest itself exceeds `ma
 
 When a peer is closed or detached from a connected peer, any JSON transport decoder attached to that peer link is detached as well. This clears transport listeners and buffered partial messages.
 
+## Reliable Delivery
+
+JSON transport can add exactly-once completion on top of its chunking. The receiver acks a fully assembled transmission, nacks a stalled one with a diff of what's still missing, and the sender blind-resends when neither an ack nor a nack arrives in time.
+
+Enable it directly on a `JSONTransport`:
+
+```ts
+import { createJSONTransport } from 'lemon-model';
+
+const transport = createJSONTransport(network, { reliable: true });
+await transport.send({ type: 'text', data: { text: 'hello' } }); // resolves once the receiver acks
+```
+
+Or through a `Peer`, using the top-level `reliable` shortcut (the recommended entry point):
+
+```ts
+const client = createPeer({ id: 'client', reliable: true });
+```
+
+This is equivalent to the more explicit nested form, `createPeer({ id: 'client', jsonTransport: { reliable: true } })` — use the nested form when other `jsonTransport` options (e.g. `chunkBytes`) also need to be set alongside it.
+
+**Both ends must opt in at the same time.** An asymmetric setup surfaces as `json.reliable.mismatch` on the non-reliable side, and the reliable side's `send()` eventually rejects because no ack ever arrives.
+
+The shortest way to observe reliable-mode failures out-of-band is `onReliableError` — it filters `onError` down to reliable-mode scopes and narrows the error to `JSONTransportReliableError`, so `error.tid` is available with no extra type check. It works the same way on a direct `JSONTransport` and on a `Peer` (both expose `onError`), since `Peer` forwards the same error instance, just with its scope re-published under a `peer.transport.` prefix:
+
+```ts
+import { JSONTransportReliableError, onReliableError } from 'lemon-model';
+
+transport.send(data).catch(error => {
+    if (error instanceof JSONTransportReliableError) console.error(error.tid, error.message);
+});
+
+onReliableError(transport, (error, context) => {
+    console.error(error.tid, error.message, context.scope); // 'json.reliable.failed' or 'json.reliable.detached'
+});
+```
+
+```ts
+client.send(data).catch(error => {
+    if (error instanceof JSONTransportReliableError) console.error(error.tid, error.message);
+});
+
+onReliableError(client, (error, context) => {
+    console.error(error.tid, error.message, context.scope); // e.g. 'peer.transport.json.reliable.failed'
+});
+```
+
+`onReliableError` combines two lower-level checks — `isJSONReliableScope(context.scope)` and `error instanceof JSONTransportReliableError`. Reach for them directly for scopes it doesn't cover, e.g. detecting an asymmetric reliable setup, which surfaces as `json.reliable.mismatch` (or its `peer.transport.` re-published form) on a plain `Error`, not a `JSONTransportReliableError` — there's no `send()` in flight yet to attach a `tid` to:
+
+```ts
+import { isJSONReliableScope, JSON_RELIABLE_SCOPE } from 'lemon-model';
+
+transport.onError((error, context) => {
+    if (context.scope === JSON_RELIABLE_SCOPE.mismatch) {
+        // this side is not reliable, but the peer is
+    }
+});
+
+client.onError((error, context) => {
+    if (isJSONReliableScope(context.scope)) {
+        // matches both `json.reliable.mismatch` and `peer.transport.json.reliable.mismatch`
+    }
+});
+```
+
+| Option | Default | Meaning |
+|---|---|---|
+| `nackDebounceMs` | 150 | quiet time after the last packet before the receiver sends a nack |
+| `resendIntervalMs` | 2,000 | blind full-resend interval when neither ack nor nack arrives |
+| `maxAttempts` | 6 | retry budget before `send()` rejects; ticks while `readyState !== 'open'` don't count |
+| `deadlineMs` | 60,000 | wall-clock cap on one `send()` unit from its start; keeps counting even while `readyState` stays non-open |
+| `settledTtlMs` | 5 minutes | how long a completed/failed tid is remembered, to absorb late duplicate retransmits |
+| `settledMaxEntries` | 10,000 | hard cap on settled memory size; oldest entries are evicted first |
+
+Reliable mode assumes a unicast relay between exactly two reliable endpoints. It cannot terminate at a stateless server (e.g. Lambda) that only relays between other endpoints, since ack/nack bookkeeping lives in one `JSONTransport` instance's in-memory state, which does not survive past a single invocation.
+
 ## Dynamic Network Configuration
 
 Network behavior can be changed after peers are created.
