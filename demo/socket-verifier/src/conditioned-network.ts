@@ -10,7 +10,7 @@ import type {
     SocketReadyState,
     SocketUnsubscribe,
 } from '@socket/types';
-import type { NetworkTapEvent, VerifierCondition } from './types';
+import type { DropFilter, NetworkTapEvent, VerifierCondition } from './types';
 
 /** minimal shape of a `json:chunk` transport packet (see @socket/transport) */
 interface ChunkPacket {
@@ -43,13 +43,33 @@ const corruptChunkData = (data: string): string => {
     return swapped + data.slice(1);
 };
 
+/** `NetworkSupportable` plus the deterministic force-drop control the demo's presets arm */
+export interface ConditionedNetwork extends NetworkSupportable {
+    /** deterministically drop the next `count` outbound frames matching the current dropFilter */
+    armForceDrop(count: number): void;
+}
+
+/** does an outbound frame fall under the current dropFilter? */
+const matchesDropFilter = (raw: string, chunk: ChunkPacket | undefined, filter: DropFilter): boolean => {
+    if (filter === 'chunk') return chunk !== undefined;
+    if (filter === 'ack') return raw.includes('"type":"json:ack"') || raw.includes('"type":"json:nack"');
+    return true;
+};
+
 /** `NetworkSupportable` decorator applying verifier conditions to outbound `send()` only */
-class ConditionedNetwork implements NetworkSupportable {
+class ConditionedNetworkImpl implements ConditionedNetwork {
+    /** remaining count of matching frames to drop deterministically, ahead of any probabilistic dropRate */
+    private forceDropRemaining = 0;
+
     public constructor(
         private readonly source: NetworkSupportable,
         private readonly getCondition: () => VerifierCondition,
         private readonly onTap?: (event: NetworkTapEvent) => void,
     ) {}
+
+    public armForceDrop(count: number): void {
+        this.forceDropRemaining = Math.max(0, count);
+    }
 
     public get readyState(): SocketReadyState {
         return this.source.readyState;
@@ -85,13 +105,22 @@ class ConditionedNetwork implements NetworkSupportable {
         const bytes = byteLength(data);
         if (bytes > condition.maxPacketBytes) throw new Error(`1009: message too big`);
 
-        if (condition.dropRate > 0 && Math.random() < condition.dropRate) {
-            this.onTap?.({ kind: 'drop', at: Date.now(), raw: data, meta: { bytes } });
+        let chunk = parseChunkPacket(data);
+        const filter = condition.dropFilter ?? 'all';
+        const targeted = matchesDropFilter(data, chunk, filter);
+
+        // deterministic forced drop wins over probabilistic dropRate so presets are repeatable
+        if (targeted && this.forceDropRemaining > 0) {
+            this.forceDropRemaining -= 1;
+            this.emitDrop(data, chunk, bytes);
+            return;
+        }
+        if (targeted && condition.dropRate > 0 && Math.random() < condition.dropRate) {
+            this.emitDrop(data, chunk, bytes);
             return;
         }
 
         let frame = data;
-        let chunk = parseChunkPacket(frame);
         if (chunk && condition.corruptRate > 0 && Math.random() < condition.corruptRate) {
             chunk = { ...chunk, data: corruptChunkData(chunk.data) };
             frame = JSON.stringify(chunk);
@@ -126,6 +155,14 @@ class ConditionedNetwork implements NetworkSupportable {
         setTimeout(() => this.source.send(frame), delayMs);
     }
 
+    /** emit a drop tap, carrying chunk identifiers when the dropped frame is a json:chunk */
+    private emitDrop(raw: string, chunk: ChunkPacket | undefined, bytes: number): void {
+        const meta = chunk
+            ? { tid: chunk.tid, cid: chunk.cid, index: chunk.index, total: chunk.total, bytes }
+            : { bytes };
+        this.onTap?.({ kind: 'drop', at: Date.now(), raw, meta });
+    }
+
     /** ordered: base latency only (stable delivery order). unordered: latency + random jitter (may reorder) */
     private nextDelayMs(condition: VerifierCondition): number {
         if (!condition.unordered || condition.jitterMs <= 0) return condition.latencyMs;
@@ -138,4 +175,4 @@ export const createConditionedNetwork = (
     source: NetworkSupportable,
     getCondition: () => VerifierCondition,
     onTap?: (event: NetworkTapEvent) => void,
-): NetworkSupportable => new ConditionedNetwork(source, getCondition, onTap);
+): ConditionedNetwork => new ConditionedNetworkImpl(source, getCondition, onTap);
