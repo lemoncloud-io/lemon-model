@@ -33,7 +33,15 @@ body {
 
 .add-panel {
     display: flex;
+    align-items: center;
     gap: 8px;
+}
+
+.reliable-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
 }
 
 .layout {
@@ -368,4 +376,378 @@ input:disabled {
 .timeline-row.kind-duplicate {
     background: #3a3320;
     color: #ffe066;
+}
+
+.timeline-row.kind-ack {
+    background: #17332a;
+}
+
+.timeline-row.kind-nack {
+    background: #3a2a1f;
+}
+
+.timeline-row.kind-resend {
+    background: #1f2a3a;
+}
+
+.timeline-row.kind-reliable-fail {
+    background: #4a1f1f;
+    color: #ff6b6b;
+}
+
+/* scenario presets + aggregate summary */
+.scenario-presets {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.preset-label {
+    color: #9aa1ad;
+    font-size: 12px;
+}
+
+.scenario-presets button {
+    font-size: 12px;
+}
+
+.summary-bar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #1b1e24;
+    border-bottom: 1px solid #2a2e37;
+}
+
+.summary-chip {
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #22262e;
+    color: #9aa1ad;
+}
+
+.chip-acked {
+    background: #17332a;
+    color: #69db7c;
+}
+
+.chip-resent {
+    background: #1f2a3a;
+    color: #74c0fc;
+}
+
+.chip-failed {
+    background: #3a1f1f;
+    color: #ff8787;
+}
+
+/* transmission cards (P0-1/P0-2) */
+.tx-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tx-cards-header {
+    color: #9aa1ad;
+    font-size: 12px;
+}
+
+.tx-card {
+    border: 1px solid #2a2e37;
+    border-left: 3px solid #3a4152;
+    border-radius: 4px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #16181d;
+}
+
+.tx-card.tx-status-acked,
+.tx-card.tx-status-assembled {
+    border-left-color: #69db7c;
+}
+
+.tx-card.tx-status-nack,
+.tx-card.tx-status-resending {
+    border-left-color: #ffa94d;
+}
+
+.tx-card.tx-status-failed {
+    border-left-color: #ff6b6b;
+    border-color: #ff6b6b;
+}
+
+.tx-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.tx-role {
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.tx-role-sender {
+    color: #74c0fc;
+}
+
+.tx-role-receiver {
+    color: #69db7c;
+}
+
+.tx-tid {
+    font-family: ui-monospace, monospace;
+    color: #9aa1ad;
+}
+
+.tx-chip {
+    margin-left: auto;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #2a2e37;
+    color: #cdd3dd;
+}
+
+.tx-chip-acked,
+.tx-chip-assembled {
+    background: #1f4a2b;
+    color: #69db7c;
+}
+
+.tx-chip-nack,
+.tx-chip-resending {
+    background: #4a3620;
+    color: #ffc078;
+}
+
+.tx-chip-failed {
+    background: #3a1f1f;
+    color: #ff8787;
+}
+
+.tx-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+.tx-grid-inline {
+    color: #6b7280;
+    font-size: 11px;
+    font-style: italic;
+}
+
+.tx-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 11px;
+    color: #9aa1ad;
+}
+
+.tx-cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #14161a;
+    background: #3a4152;
+    border: 2px solid transparent;
+}
+
+/* awaiting confirmation */
+.tx-cell-pending {
+    background: #4a5061;
+    color: #cdd3dd;
+}
+
+/* arrived / acked */
+.tx-cell-delivered {
+    background: #69db7c;
+}
+
+/* currently lost */
+.tx-cell-dropped {
+    background: #ff6b6b;
+}
+
+/* re-sent, not yet confirmed */
+.tx-cell-resend {
+    background: #ffa94d;
+}
+
+/* never observed */
+.tx-cell-missing {
+    background: #2a2e37;
+    color: #6b7280;
+}
+
+/* delivered but only after a drop+resend — keep the recovery visible */
+.tx-cell-recovered {
+    border-color: #ffa94d;
+    box-shadow: 0 0 4px #ffa94d;
+}
+
+/* role badges (panel header) */
+.role-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.role-sender {
+    background: #14304a;
+    color: #74c0fc;
+}
+
+.role-receiver {
+    background: #163a2a;
+    color: #69db7c;
+}
+
+/* ack/nack/resend direction hints on a transmission card */
+.tx-dir-in {
+    color: #69db7c;
+    font-weight: 700;
+}
+
+.tx-dir-out {
+    color: #74c0fc;
+    font-weight: 700;
+}
+
+/* summary-bar reset */
+.summary-reset {
+    margin-left: auto;
+    font-size: 12px;
+    padding: 2px 12px;
+}
+
+/* collapsible timeline groups */
+.timeline-group-head {
+    cursor: pointer;
+    background: #202530;
+}
+
+.timeline-group-head:hover {
+    background: #262c39;
+}
+
+.timeline-group-head .col-seq {
+    color: #9aa1ad;
+    font-weight: 700;
+}
+
+.timeline-group-head .col-detail {
+    color: #cdd3dd;
+}
+
+.group-summary {
+    color: #9aa1ad;
+    font-family: ui-monospace, monospace;
+}
+
+.group-tid {
+    margin-left: 6px;
+    color: #7a7f8a;
+    font-family: ui-monospace, monospace;
+}
+
+.timeline-child {
+    margin-left: 14px;
+    border-left: 2px solid #2a2e37;
+    opacity: 0.85;
+}
+
+/* click-to-inspect payload rows + detail panel */
+.timeline-row.row-payload {
+    cursor: pointer;
+}
+
+.timeline-row.row-payload:hover {
+    background: #262c39;
+}
+
+.payload-caret {
+    margin-right: 6px;
+    color: #9aa1ad;
+}
+
+.payload-detail {
+    margin: 0 0 2px;
+    padding: 8px 10px;
+    background: #14171d;
+    border-left: 2px solid #3a3f4a;
+    border-radius: 3px;
+}
+
+.payload-detail.timeline-child {
+    margin-left: 14px;
+    opacity: 1;
+}
+
+.payload-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.payload-size {
+    color: #9aa1ad;
+    font-size: 11px;
+}
+
+.payload-copy {
+    font-size: 11px;
+    padding: 2px 10px;
+}
+
+.payload-copy:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.payload-body {
+    margin: 0;
+    max-height: 320px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    color: #cdd3dd;
+}
+
+.payload-note {
+    margin: 6px 0 0;
+    color: #ffa94d;
+    font-size: 11px;
+}
+
+.force-drop-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.force-drop-row input {
+    width: 56px;
+}
+
+.force-drop-row button {
+    font-size: 11px;
 }
