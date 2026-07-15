@@ -17,7 +17,7 @@ export interface VerifierStore {
     updateConnection(id: string, patch: Partial<Omit<ConnectionState, 'id'>>): void;
     removeConnection(id: string): void;
     pushEvent(event: NewTimelineEvent): TimelineEvent;
-    /** diff against the previously noted count for `connectionId`; an increase derives a `pending` event */
+    clearEvents(): void;
     notePendingCount(connectionId: string, count: number): void;
 }
 
@@ -69,6 +69,12 @@ class VerifierStoreImpl implements VerifierStore {
         this.events = [...this.events, $event];
         this.commit();
         return $event;
+    }
+
+    public clearEvents(): void {
+        this.events = [];
+        this.pendingCounts.clear();
+        this.commit();
     }
 
     public notePendingCount(connectionId: string, count: number): void {

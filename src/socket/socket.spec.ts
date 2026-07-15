@@ -15,6 +15,7 @@ import {
     PeerNetworkFactoryContext,
 } from './socket';
 import { NetworkSupportable, PeerSupportable, SocketLogEntry, SocketMessage } from './types';
+import { JSONTransportReliableError, onReliableError } from './transport';
 
 const wait = (ms = 5) => new Promise(resolve => setTimeout(resolve, ms));
 const peerIdentityProvider = () => {
@@ -611,5 +612,144 @@ describe('socket', () => {
         expect2(() => client.id).toEqual('p-2');
         expect2(() => clientId).toEqual('c-1');
         expect2(() => factory.find('p-1')).toEqual(server);
+    });
+
+    describe('reliable Peer transport', () => {
+        it('should complete a reliable Peer round trip (transport ack and application result)', async () => {
+            const server = createPeer({ id: 'server', jsonTransport: { reliable: true } });
+            const client = createPeer({ id: 'client', jsonTransport: { reliable: true } });
+            client.connect(server);
+
+            server.onMessage(message => ({ ok: true, echo: message.data }));
+
+            const response = await client.send({ type: 'hello', data: { text: 'hi' } });
+            expect2(() => response).toEqual({ ok: true, echo: { text: 'hi' } });
+        });
+
+        it('should complete a reliable Peer round trip using the top-level reliable shortcut', async () => {
+            const server = createPeer({ id: 'server', reliable: true });
+            const client = createPeer({ id: 'client', reliable: true });
+            client.connect(server);
+
+            server.onMessage(message => ({ ok: true, echo: message.data }));
+
+            const response = await client.send({ type: 'hello', data: { text: 'hi' } });
+            expect2(() => response).toEqual({ ok: true, echo: { text: 'hi' } });
+        });
+
+        it('should fail-fast reject send() when its reliable transport send exhausts the retry budget', async () => {
+            const server = createPeer({ id: 'server', jsonTransport: { reliable: true } });
+            const client = createPeer({
+                id: 'client',
+                maxPacketBytes: 10,
+                jsonTransport: { chunkBytes: 8, reliable: { maxAttempts: 1 } },
+            });
+            client.connect(server);
+            server.onMessage(() => ({ ok: true }));
+
+            const error = await client.send({ type: 'x', data: null }).catch(GETERR);
+            expect2(() => error).toEqual(expect.stringContaining('max attempts exceeded'));
+        });
+
+        it('should notify onError when a reliable post() send exhausts the retry budget', async () => {
+            const server = createPeer({ id: 'server', jsonTransport: { reliable: true } });
+            const client = createPeer({
+                id: 'client',
+                maxPacketBytes: 10,
+                jsonTransport: { chunkBytes: 8, reliable: { maxAttempts: 1 } },
+            });
+            client.connect(server);
+            const scopes: string[] = [];
+
+            client.onError((error, context) => {
+                scopes.push(context.scope);
+            });
+            client.post({ type: 'x', data: null, mid: nextMessageId() });
+            await wait(20);
+
+            //! post() keeps its own "peer.post" channel (01 하한선) alongside the transport's own onError.
+            expect2(() => [...scopes].sort()).toEqual(['peer.post', 'peer.transport.json.reliable.failed']);
+        });
+
+        it('should fail an in-flight reliable send when the peer link reconnects', async () => {
+            const server = createPeer({ id: 'server', jsonTransport: { reliable: true } });
+            const client = createPeer({ id: 'client', jsonTransport: { reliable: { resendIntervalMs: 5000 } } });
+            const clientId = client.connect(server);
+            server.onMessage(() => ({ ok: true }));
+
+            const pending = client.send({ type: 'x', data: null }).catch(GETERR);
+            server.reconnect({ clientId });
+
+            expect2(await pending).toEqual(expect.stringContaining('transport detached'));
+        });
+
+        it('should propagate json.reliable.mismatch when a non-reliable link receives an ack/nack packet', async () => {
+            const server = createPeer({ id: 'server', jsonTransport: { largeValueBytes: 8 } });
+            const client = createPeer({ id: 'client', jsonTransport: { largeValueBytes: 8 } });
+            client.connect(server);
+            const scopes: string[] = [];
+            const errors: string[] = [];
+
+            server.onError((error, context) => {
+                errors.push(GETERR(error));
+                scopes.push(context.scope);
+            });
+            server.onMessage(() => ({ ok: true }));
+
+            //! simulates the reliable side of a mismatched pair sending an ack the off side cannot understand.
+            client.network?.send(JSON.stringify({ type: 'json:ack', tid: 'fake-tid' }));
+            await wait(20);
+
+            expect2(() => scopes).toEqual(['peer.transport.json.reliable.mismatch']);
+            expect2(() => errors[0]).toEqual(expect.stringContaining('json.reliable.mismatch'));
+            expect2(await client.send({ type: 'x', data: null })).toEqual({ ok: true });
+        });
+
+        it('should let onReliableError(peer, handler) subscribe directly on a Peer instance', async () => {
+            const server = createPeer({ id: 'server', jsonTransport: { reliable: true } });
+            const client = createPeer({
+                id: 'client',
+                maxPacketBytes: 10,
+                jsonTransport: { chunkBytes: 8, reliable: { maxAttempts: 1 } },
+            });
+            client.connect(server);
+            server.onMessage(() => ({ ok: true }));
+
+            const clientReliableErrors: { error: JSONTransportReliableError; scope: string }[] = [];
+            const serverReliableErrors: { error: JSONTransportReliableError; scope: string }[] = [];
+            onReliableError(client, (error, context) => clientReliableErrors.push({ error, scope: context.scope }));
+            onReliableError(server, (error, context) => serverReliableErrors.push({ error, scope: context.scope }));
+
+            const error = await client.send({ type: 'x', data: null }).catch(GETERR);
+            expect2(() => error).toEqual(expect.stringContaining('max attempts exceeded'));
+
+            expect2(() => clientReliableErrors.length).toEqual(1);
+            expect2(() => clientReliableErrors[0].error instanceof JSONTransportReliableError).toEqual(true);
+            expect2(() => typeof clientReliableErrors[0].error.tid).toEqual('string');
+            expect2(() => clientReliableErrors[0].scope).toEqual(
+                expect.stringContaining('peer.transport.json.reliable.failed'),
+            );
+            //! server never runs a failing reliable send in this flow, so its onReliableError handler must stay silent.
+            expect2(() => serverReliableErrors.length).toEqual(0);
+        });
+
+        it('should warn when the top-level reliable shortcut conflicts with an explicit jsonTransport.reliable', () => {
+            const logs: SocketLogEntry[] = [];
+            const logger = { log: (entry: SocketLogEntry) => logs.push(entry) };
+
+            createPeer({ id: 'mismatched', logger, reliable: true, jsonTransport: { reliable: false } });
+            expect2(() => logs.filter(l => l.level === 'warn').map(l => l.location)).toEqual(['peer.constructor']);
+        });
+
+        it('should not warn when only the shortcut is set, or when both agree', () => {
+            const logs: SocketLogEntry[] = [];
+            const logger = { log: (entry: SocketLogEntry) => logs.push(entry) };
+
+            createPeer({ id: 'shortcut-only', logger, reliable: true });
+            createPeer({ id: 'agree', logger, reliable: true, jsonTransport: { reliable: true } });
+            createPeer({ id: 'off', logger, jsonTransport: { reliable: false } });
+
+            expect2(() => logs.some(l => l.level === 'warn')).toEqual(false);
+        });
     });
 });
