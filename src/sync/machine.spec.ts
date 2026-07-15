@@ -364,7 +364,8 @@ describe('machine', () => {
         let taskList: TaskState[] = [];
         let lastSince: number | undefined;
         bridge.server.onMessage((message: { type: string; data: any; mid: string }) => {
-            if (message.type !== 'sync/task:pull') throw new Error(`@type[${message.type}] unhandled - test.taskServer`);
+            if (message.type !== 'sync/task:pull')
+                throw new Error(`@type[${message.type}] unhandled - test.taskServer`);
             lastSince = message.data?.since;
             const since: number = message.data?.since ?? 0;
             return { models: taskList.filter(task => (task.seq ?? 0) > since) };

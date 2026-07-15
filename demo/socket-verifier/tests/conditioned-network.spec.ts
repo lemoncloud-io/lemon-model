@@ -116,7 +116,11 @@ describe('conditioned-network', () => {
     it('drops outbound frames when dropRate triggers, emitting a drop tap', () => {
         const source = createFakeNetwork();
         const taps: NetworkTapEvent[] = [];
-        const network = createConditionedNetwork(source, () => condition({ dropRate: 1 }), event => taps.push(event));
+        const network = createConditionedNetwork(
+            source,
+            () => condition({ dropRate: 1 }),
+            event => taps.push(event),
+        );
 
         network.send('lost');
 

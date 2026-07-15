@@ -249,7 +249,13 @@ export const createWsSession = (options: CreateWsSessionOptions): WsVerifierSess
         });
 
         unsubMessage = transport.onMessage(data => {
-            push({ direction: 'in', kind: 'receive', severity: 'normal', detail: preview(data), meta: payloadMeta(data) });
+            push({
+                direction: 'in',
+                kind: 'receive',
+                severity: 'normal',
+                detail: preview(data),
+                meta: payloadMeta(data),
+            });
             notePending();
         });
         unsubError = transport.onError((error, context) => {

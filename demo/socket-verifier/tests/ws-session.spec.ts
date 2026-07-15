@@ -134,7 +134,9 @@ describe('ws-session', () => {
 
         await session.send({ text: 'after-reconnect' });
         await waitFor(() =>
-            store.getSnapshot().events.some(e => e.kind === 'receive' && e.direction === 'in' && e.connectionId === 'A'),
+            store
+                .getSnapshot()
+                .events.some(e => e.kind === 'receive' && e.direction === 'in' && e.connectionId === 'A'),
         );
     });
 
@@ -144,7 +146,9 @@ describe('ws-session', () => {
 
         await waitFor(() => store.getSnapshot().events.some(e => e.kind === 'receive' && e.direction === 'in'));
 
-        const packetErrors = store.getSnapshot().events.filter(e => e.kind === 'error' && e.meta?.scope === 'json.packet');
+        const packetErrors = store
+            .getSnapshot()
+            .events.filter(e => e.kind === 'error' && e.meta?.scope === 'json.packet');
         expect(packetErrors).toHaveLength(0);
     });
 

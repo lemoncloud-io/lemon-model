@@ -93,9 +93,15 @@ describe('multi-session extension (mode B 패널의 Sockets 섹션)', () => {
 
         // mock server broadcasts every inbound frame to every connected client (crosstalk, 패널 단독 조건),
         // so 2 independent sends (S0+S1) become 2*2=4 inbound deliveries with the same mid
-        await waitFor(() => store.getSnapshot().events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid).length >= 4);
+        await waitFor(
+            () =>
+                store.getSnapshot().events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid)
+                    .length >= 4,
+        );
 
-        const receives = store.getSnapshot().events.filter(e => e.kind === 'receive' && e.direction === 'in' && e.meta?.mid);
+        const receives = store
+            .getSnapshot()
+            .events.filter(e => e.kind === 'receive' && e.direction === 'in' && e.meta?.mid);
         const duplicates = store.getSnapshot().events.filter(e => e.kind === 'duplicate');
         expect(receives).toHaveLength(1);
         expect(duplicates).toHaveLength(3);
@@ -111,9 +117,15 @@ describe('multi-session extension (mode B 패널의 Sockets 섹션)', () => {
 
         m.sendAll({ hello: 'n3' });
 
-        await waitFor(() => store.getSnapshot().events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid).length >= 9);
+        await waitFor(
+            () =>
+                store.getSnapshot().events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid)
+                    .length >= 9,
+        );
 
-        const midEvents = store.getSnapshot().events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid);
+        const midEvents = store
+            .getSnapshot()
+            .events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid);
         expect(midEvents).toHaveLength(9);
         expect(midEvents.filter(e => e.kind === 'receive')).toHaveLength(1);
         expect(midEvents.filter(e => e.kind === 'duplicate')).toHaveLength(8);
@@ -135,9 +147,17 @@ describe('multi-session extension (mode B 패널의 Sockets 섹션)', () => {
         expect(sendEvent?.direction).toBe('out');
         const mid = sendEvent?.meta?.mid;
 
-        await waitFor(() => store.getSnapshot().events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid === mid).length >= 3);
+        await waitFor(
+            () =>
+                store
+                    .getSnapshot()
+                    .events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid === mid)
+                    .length >= 3,
+        );
 
-        const midEvents = store.getSnapshot().events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid === mid);
+        const midEvents = store
+            .getSnapshot()
+            .events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid === mid);
         expect(midEvents).toHaveLength(3); // echo to S1 itself + relay to S0 + relay to S2
     });
 
@@ -151,12 +171,23 @@ describe('multi-session extension (mode B 패널의 Sockets 섹션)', () => {
         expect(afterRemove?.map(s => s.index)).toEqual([0, 1]);
 
         m.sendAll({ after: 'remove' });
-        const sendEvent = store.getSnapshot().events.filter(e => e.kind === 'send' && e.detail.startsWith('sendAll')).pop();
+        const sendEvent = store
+            .getSnapshot()
+            .events.filter(e => e.kind === 'send' && e.detail.startsWith('sendAll'))
+            .pop();
         const mid = sendEvent?.meta?.mid;
 
         // only 2 sockets remain configured, so sendAll now yields 2*2=4 deliveries for this mid (not 9)
-        await waitFor(() => store.getSnapshot().events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid === mid).length >= 4);
-        const midEvents = store.getSnapshot().events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid === mid);
+        await waitFor(
+            () =>
+                store
+                    .getSnapshot()
+                    .events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid === mid)
+                    .length >= 4,
+        );
+        const midEvents = store
+            .getSnapshot()
+            .events.filter(e => (e.kind === 'receive' || e.kind === 'duplicate') && e.meta?.mid === mid);
         expect(midEvents).toHaveLength(4);
 
         // the survivor's direct-subscribe tagging must have moved with it to the new index (1), not
@@ -198,13 +229,19 @@ describe('multi-session extension (mode B 패널의 Sockets 섹션)', () => {
         await waitFor(() =>
             store
                 .getSnapshot()
-                .events.some(e => e.kind === 'error' && e.severity === 'error' && e.meta?.scope === MULTI_NETWORK_SCOPE.send),
+                .events.some(
+                    e => e.kind === 'error' && e.severity === 'error' && e.meta?.scope === MULTI_NETWORK_SCOPE.send,
+                ),
         );
-        const failure = store.getSnapshot().events.find(e => e.kind === 'error' && e.meta?.scope === MULTI_NETWORK_SCOPE.send);
+        const failure = store
+            .getSnapshot()
+            .events.find(e => e.kind === 'error' && e.meta?.scope === MULTI_NETWORK_SCOPE.send);
         expect(failure?.meta?.socketIndex).toBe(0);
 
         // S1 is the only connection left, so its own broadcast still comes back (no duplicate)
-        await waitFor(() => store.getSnapshot().events.some(e => e.kind === 'receive' && e.direction === 'in' && e.meta?.mid));
+        await waitFor(() =>
+            store.getSnapshot().events.some(e => e.kind === 'receive' && e.direction === 'in' && e.meta?.mid),
+        );
     });
 
     it('백업(S1) 소켓만 닫아도 메인 단독 send/receive(transport 경유)는 계속 동작한다', async () => {

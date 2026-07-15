@@ -96,56 +96,60 @@ export const createMultiSession = (options: CreateMultiSessionOptions): MultiSes
         store.updateConnection(id, { sockets });
     };
 
-    const handleTaggedMessage = (index: number) => (raw: string): void => {
-        if (isTransportFrame(raw)) return; // belongs to S0's transport stack; already handled by ws-session.ts
-        let parsed: any;
-        try {
-            parsed = JSON.parse(raw);
-        } catch {
-            parsed = undefined;
-        }
-        const mid = parsed?.mid as string | undefined;
-        if (mid && seenMids.has(mid)) {
+    const handleTaggedMessage =
+        (index: number) =>
+        (raw: string): void => {
+            if (isTransportFrame(raw)) return; // belongs to S0's transport stack; already handled by ws-session.ts
+            let parsed: any;
+            try {
+                parsed = JSON.parse(raw);
+            } catch {
+                parsed = undefined;
+            }
+            const mid = parsed?.mid as string | undefined;
+            if (mid && seenMids.has(mid)) {
+                push({
+                    direction: 'in',
+                    kind: 'duplicate',
+                    severity: 'normal',
+                    detail: `duplicate mid=${mid}`,
+                    meta: { mid, socketIndex: index },
+                });
+                return;
+            }
+            if (mid) seenMids.add(mid);
             push({
                 direction: 'in',
-                kind: 'duplicate',
+                kind: 'receive',
                 severity: 'normal',
-                detail: `duplicate mid=${mid}`,
+                detail: preview(parsed ?? raw),
                 meta: { mid, socketIndex: index },
             });
-            return;
-        }
-        if (mid) seenMids.add(mid);
-        push({
-            direction: 'in',
-            kind: 'receive',
-            severity: 'normal',
-            detail: preview(parsed ?? raw),
-            meta: { mid, socketIndex: index },
-        });
-    };
+        };
 
-    const handleTaggedError = (index: number) => (error: any, context: SocketErrorContext): void => {
-        if (context.scope === WEBSOCKET_NETWORK_SCOPE.ownedClose) {
-            if (index === 0) return; // S0's remote close: already reported by ws-session.ts
+    const handleTaggedError =
+        (index: number) =>
+        (error: any, context: SocketErrorContext): void => {
+            if (context.scope === WEBSOCKET_NETWORK_SCOPE.ownedClose) {
+                if (index === 0) return; // S0's remote close: already reported by ws-session.ts
+                push({
+                    direction: 'sys',
+                    kind: 'close',
+                    severity: 'normal',
+                    detail: `S${index} closed remotely - ${context.scope}`,
+                    meta: { socketIndex: index, scope: context.scope },
+                });
+                syncSockets();
+                return;
+            }
             push({
                 direction: 'sys',
-                kind: 'close',
-                severity: 'normal',
-                detail: `S${index} closed remotely - ${context.scope}`,
+                kind: 'error',
+                severity: 'error',
+                detail: `S${index}: ${error?.message ?? error} - ${context.scope}`,
                 meta: { socketIndex: index, scope: context.scope },
             });
-            syncSockets();
-            return;
-        }
-        push({
-            direction: 'sys',
-            kind: 'error',
-            severity: 'error',
-            detail: `S${index}: ${error?.message ?? error} - ${context.scope}`,
-            meta: { socketIndex: index, scope: context.scope },
-        });
-    };
+        };
 
     const unsubPrimaryMessage = primary.onMessage(handleTaggedMessage(0));
     const unsubPrimaryError = primary.onError(handleTaggedError(0));
@@ -212,7 +216,13 @@ export const createMultiSession = (options: CreateMultiSessionOptions): MultiSes
             entry.unsubError();
             entry.owned.close();
             backups.splice(index - 1, 1);
-            push({ direction: 'sys', kind: 'close', severity: 'normal', detail: `S${index} removed by client`, meta: { socketIndex: index } });
+            push({
+                direction: 'sys',
+                kind: 'close',
+                severity: 'normal',
+                detail: `S${index} removed by client`,
+                meta: { socketIndex: index },
+            });
 
             // index is only ever "current array position" - every surviving backup shifted down one
             // slot, so its direct-subscribe tagging closure (fixed at add time) must be re-subscribed
@@ -242,14 +252,26 @@ export const createMultiSession = (options: CreateMultiSessionOptions): MultiSes
                 });
                 store.updateConnection(id, { status: 'closed' });
             } else {
-                push({ direction: 'sys', kind: 'close', severity: 'normal', detail: `S${index} closed by client`, meta: { socketIndex: index } });
+                push({
+                    direction: 'sys',
+                    kind: 'close',
+                    severity: 'normal',
+                    detail: `S${index} closed by client`,
+                    meta: { socketIndex: index },
+                });
             }
             syncSockets();
         },
 
         sendOne: (index: number, payload: unknown) => {
             const mid = nextMid();
-            push({ direction: 'out', kind: 'send', severity: 'normal', detail: preview(payload), meta: { mid, socketIndex: index } });
+            push({
+                direction: 'out',
+                kind: 'send',
+                severity: 'normal',
+                detail: preview(payload),
+                meta: { mid, socketIndex: index },
+            });
             networkAt(index).send(JSON.stringify({ mid, data: payload }));
         },
 
@@ -257,7 +279,13 @@ export const createMultiSession = (options: CreateMultiSessionOptions): MultiSes
             const errScope = `sendAll(${id})`;
             if (!composite) throw new Error(`no backup sockets configured - ${errScope}`);
             const mid = nextMid();
-            push({ direction: 'out', kind: 'send', severity: 'normal', detail: `sendAll ${preview(payload)}`, meta: { mid, all: true } });
+            push({
+                direction: 'out',
+                kind: 'send',
+                severity: 'normal',
+                detail: `sendAll ${preview(payload)}`,
+                meta: { mid, all: true },
+            });
             composite.sendAll(JSON.stringify({ mid, data: payload }));
         },
 
