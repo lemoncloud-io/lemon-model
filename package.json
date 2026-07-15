@@ -1,6 +1,6 @@
 {
   "name": "lemon-model",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "Common shared model definitions for Lemon Micro-Service Platform",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
