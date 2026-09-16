@@ -111,7 +111,13 @@ export interface UploadPresignedPutTransfer {
     kind: typeof UPLOAD_TRANSFER_KIND.presignedPut;
     method: 'PUT';
     url: string;
-    /** every header the signature covers; send all of them unchanged */
+    /**
+     * every header the signature covers; send them unchanged.
+     * - EXCEPT the ones the user agent owns: `content-length` and `host`. `fetch` and
+     *   `XMLHttpRequest` forbid setting them and the UA fills them from the request itself,
+     *   so a shell adapter must drop them from this map before sending. The signature still
+     *   matches because the UA's value is the one that was signed. `[실측]`
+     */
     headers: Record<string, string>;
     maxBytes: number;
     /** epoch-ms */
