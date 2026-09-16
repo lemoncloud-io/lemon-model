@@ -13,10 +13,24 @@ const publicModuleNames = [
     'lemon-model/progress/testing',
     'lemon-model/socket/testing',
     'lemon-model/logtrace/testing',
+    'lemon-model/upload',
+    'lemon-model/upload/testing',
 ];
 
 /** Testing subpath helpers that must never leak into the root barrel. */
 const testingOnlyExports = ['runGenAIStreamNetworkLoop', 'runProgressLoop', 'runLogTraceLoop'];
+
+/** Upload contract exports that must never leak into the root barrel (subpath-only, kept off the socket/genai hub). */
+const uploadOnlyExports = [
+    'UPLOAD_STEREO',
+    'UPLOAD_STATUS',
+    'UPLOAD_TRANSFER_KIND',
+    'UPLOAD_FAILURE_CODE',
+    'UPLOAD_FAILURE_SOURCE',
+    'UPLOAD_ROUTES',
+    'isUploadStored',
+    'uploadStereoOf',
+];
 
 /** Return runtime export names that should be shared between CommonJS and ESM. */
 const getPublicExportNames = loaded => {
@@ -70,9 +84,17 @@ const assertTestingExcludedFromRoot = contracts => {
     if (leaked.length) throw new Error(`root barrel leaks testing exports: ${leaked.join(', ')}`);
 };
 
+/** Assert upload contract exports stay out of the root barrel (a types-only consumer must not pull the socket runtime). */
+const assertUploadExcludedFromRoot = contracts => {
+    const root = contracts.find(contract => contract.moduleName === 'lemon-model');
+    const leaked = uploadOnlyExports.filter(name => root.exportNames.includes(name));
+    if (leaked.length) throw new Error(`root barrel leaks upload exports: ${leaked.join(', ')}`);
+};
+
 (async () => {
     const contracts = loadCommonJSContracts();
     assertTestingExcludedFromRoot(contracts);
+    assertUploadExcludedFromRoot(contracts);
     await checkESM(contracts);
     console.log('package exports smoke test passed');
 })().catch(error => {
