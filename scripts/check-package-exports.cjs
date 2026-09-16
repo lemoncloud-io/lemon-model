@@ -15,6 +15,7 @@ const publicModuleNames = [
     'lemon-model/logtrace/testing',
     'lemon-model/upload',
     'lemon-model/upload/testing',
+    'lemon-model/upload/engine',
 ];
 
 /** Testing subpath helpers that must never leak into the root barrel. */
@@ -30,6 +31,18 @@ const uploadOnlyExports = [
     'UPLOAD_ROUTES',
     'isUploadStored',
     'uploadStereoOf',
+];
+
+/** Client upload engine exports that must never leak into the root barrel (subpath-only, shell adapters excluded). */
+const engineOnlyExports = [
+    'asContentBytes',
+    'UploadProgressTracker',
+    'UPLOAD_DEFAULT_CONCURRENCY',
+    'UploadEngine',
+    'asApiFailure',
+    'asStorageFailure',
+    'InlineExecutor',
+    'PresignedPutExecutor',
 ];
 
 /** Return runtime export names that should be shared between CommonJS and ESM. */
@@ -91,10 +104,21 @@ const assertUploadExcludedFromRoot = contracts => {
     if (leaked.length) throw new Error(`root barrel leaks upload exports: ${leaked.join(', ')}`);
 };
 
+/** Assert engine exports stay out of the root barrel AND out of the contract subpath (a server needs the contract only). */
+const assertEngineExcludedFromContract = contracts => {
+    const targets = ['lemon-model', 'lemon-model/upload'];
+    for (const moduleName of targets) {
+        const entry = contracts.find(contract => contract.moduleName === moduleName);
+        const leaked = engineOnlyExports.filter(name => entry.exportNames.includes(name));
+        if (leaked.length) throw new Error(`${moduleName} leaks engine exports: ${leaked.join(', ')}`);
+    }
+};
+
 (async () => {
     const contracts = loadCommonJSContracts();
     assertTestingExcludedFromRoot(contracts);
     assertUploadExcludedFromRoot(contracts);
+    assertEngineExcludedFromContract(contracts);
     await checkESM(contracts);
     console.log('package exports smoke test passed');
 })().catch(error => {

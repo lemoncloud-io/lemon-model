@@ -1,6 +1,6 @@
 {
   "name": "lemon-model",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Common shared model definitions for Lemon Micro-Service Platform",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
@@ -54,12 +54,19 @@
       "require": "./dist/upload/testing.js",
       "default": "./dist/upload/testing.js"
     },
+    "./upload/engine": {
+      "types": "./dist/upload/engine/index.d.ts",
+      "import": "./dist/esm/upload/engine/index.js",
+      "require": "./dist/upload/engine/index.js",
+      "default": "./dist/upload/engine/index.js"
+    },
     "./package.json": "./package.json"
   },
   "typesVersions": {
     "*": {
       "upload": ["dist/upload/index.d.ts"],
-      "upload/testing": ["dist/upload/testing.d.ts"]
+      "upload/testing": ["dist/upload/testing.d.ts"],
+      "upload/engine": ["dist/upload/engine/index.d.ts"]
     }
   },
   "scripts": {
