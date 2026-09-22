@@ -66,7 +66,7 @@ export interface UploadThumbnail {
 /**
  * snapshot other models embed as `upload$` / `upload$$` (see `UploadRef`, `UploadRefs`).
  * - what a list screen needs to draw a tile or a file chip without a second fetch.
- * - the embedded snapshot carries the descriptive fields only. `url` and `thumbnail` hold
+ * - the embedded snapshot carries the descriptive fields only. `url` and `thumbnail$` hold
  *   volatile addresses: a server re-issues them per read and MUST NOT persist them in the snapshot.
  */
 export interface UploadHead {
@@ -80,8 +80,8 @@ export interface UploadHead {
     contentSize?: number;
     /** url to serve; may be time-limited and re-issued on every read — do not persist it. present iff status is `stored` */
     url?: string;
-    /** preview of the original, when one was stored alongside it */
-    thumbnail?: UploadThumbnail;
+    /** preview of the original, when one was stored alongside it. `$` marks an embedded object, as `upload$` does */
+    thumbnail$?: UploadThumbnail;
     /** pixel size for image/video */
     width?: number;
     height?: number;

@@ -28,12 +28,12 @@
 
 - 인가: 4연산 모두 호출자의 일반 API 인가. presigned URL만 무인가 hop.
 - 2차: 버킷 CORS `AllowedMethod PUT` + 앱 origin + preflight OPTIONS 허용. 3차: `ExposeHeaders: ETag`까지.
-- 응답의 `url`·`thumbnail`은 **오래 쓰는 주소가 아니다.** 서버가 읽을 때마다 새로 발급할 수 있고 만료된다. 받을 때마다 쓰고, 저장하지 않는다.
+- 응답의 `url`·`thumbnail$`은 **오래 쓰는 주소가 아니다.** 서버가 읽을 때마다 새로 발급할 수 있고 만료된다. 받을 때마다 쓰고, 저장하지 않는다.
 - 응답과 저장은 다르다. `UploadHead`는 모양일 뿐이라, 다른 모델이 `upload$$`로 담아 두는 스냅샷에는 주소 두 개를 넣지 않는다. 설명 필드만 담는다.
 - 서버는 `pending` 티켓을 TTL로 정리한다(구현).
 
 ## 버전 · 호환 규칙
 
 - 계약 변경은 **추가만**: 필드는 옵션으로 추가, LUT 값 추가, `UploadTransfer` 변형 추가(협상이 보호), 연산 추가. 제거는 `@deprecated` 한 버전 뒤(조직 전환형 `new ?? old`).
-- **1.5.0에서 `UploadHead.thumbnail`의 타입이 바뀌었다** — url 문자열에서 `UploadThumbnail` 객체로. 이 원칙을 깬 유일한 경우다. 당시 이 필드를 읽는 소비자가 없었다.
+- **1.5.0에서 `UploadHead.thumbnail`이 `thumbnail$`로 바뀌었다** — url 문자열에서 `UploadThumbnail` 객체로 바뀌면서, 객체를 담는 필드의 `$` 관례(`upload$` · `upload$$`)를 따랐다. 이 원칙을 깬 유일한 경우다. 당시 이 필드를 읽는 소비자가 없었다.
 - 절대 하지 않는 것: 옵션 → 필수 승격(`hash` 포함), `UploadView`/`UploadHead` 필드 제거, `status` 값의 의미 변경, `UploadInlineTransfer` 발급 중단.
