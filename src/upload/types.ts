@@ -40,9 +40,34 @@ export const UPLOAD_TRANSFER_KIND = {
 } as const;
 export type UploadTransferKind = typeof UPLOAD_TRANSFER_KIND[keyof typeof UPLOAD_TRANSFER_KIND];
 
+/** one payload of bytes as the client declares it. it has no identity of its own */
+export interface UploadContentBody {
+    contentType: string;
+    contentSize: number;
+    /** pixel size for image/video. declared by the client; the server does not verify it */
+    width?: number;
+    height?: number;
+    /**
+     * sha256 hex(64). optional forever: servers MUST accept uploads without it, MUST verify it when given.
+     * on `thumbnail`, the server MAY use it the same way for that transfer; completion-time cross-check applies only to the original's hash.
+     */
+    hash?: string;
+}
+
+/** preview subordinate to one upload. no id, no status, no lifecycle of its own */
+export interface UploadThumbnail {
+    /** url to serve; may be time-limited and re-issued on every read — do not persist it */
+    url: string;
+    width?: number;
+    height?: number;
+    contentType?: string;
+}
+
 /**
  * snapshot other models embed as `upload$` / `upload$$` (see `UploadRef`, `UploadRefs`).
  * - what a list screen needs to draw a tile or a file chip without a second fetch.
+ * - the embedded snapshot carries the descriptive fields only. `url` and `thumbnail` hold
+ *   volatile addresses: a server re-issues them per read and MUST NOT persist them in the snapshot.
  */
 export interface UploadHead {
     id?: string;
@@ -53,10 +78,10 @@ export interface UploadHead {
     contentType?: string;
     /** size in bytes of the original content */
     contentSize?: number;
-    /** stable url to serve; present iff status is `stored` */
+    /** url to serve; may be time-limited and re-issued on every read — do not persist it. present iff status is `stored` */
     url?: string;
-    /** thumbnail url; may arrive after `stored` (server post-processing) */
-    thumbnail?: string;
+    /** preview of the original, when one was stored alongside it */
+    thumbnail?: UploadThumbnail;
     /** pixel size for image/video */
     width?: number;
     height?: number;
@@ -71,16 +96,17 @@ export interface UploadView extends View, UploadHead {
 
 /**
  * request layout of one upload intent.
- * - deviates from `XBody extends Body, Partial<XView>`: the three fields are required because
- *   the server picks the transfer and validates limits from them before any byte moves.
- * - inherited `id` set = re-issue the transfer of a still-`pending` upload (expired ticket).
+ * - deviates from `XBody extends Body, Partial<XView>`: `name` and the `UploadContentBody` fields
+ *   are required because the server picks the transfer and validates limits from them before any
+ *   byte moves.
+ * - inherited `id` set = re-issue transfers for an existing upload. for a still-`pending` one
+ *   (expired ticket) that is both transfers; for a `stored` one it is `thumbnailTransfer` only,
+ *   because stored bytes are immutable.
  */
-export interface UploadBody extends Body {
+export interface UploadBody extends Body, UploadContentBody {
     name: string;
-    contentType: string;
-    contentSize: number;
-    /** sha256 hex(64). optional forever: servers MUST accept uploads without it, MUST verify it when given */
-    hash?: string;
+    /** a preview the client made. the server stores it beside the original and never derives it */
+    thumbnail?: UploadContentBody;
 }
 
 /** single reference pair. add both fields or neither */
@@ -128,12 +154,17 @@ export type UploadTransfer = UploadInlineTransfer | UploadPresignedPutTransfer;
 
 /**
  * one slot of `start`'s answer.
- * - `upload` is safe to store and log. `transfer` is consumed once by the executor and dropped.
- * - no `transfer` = nothing to send: already `stored` (dedup) or `failed` at validation.
+ * - `upload` is safe to store and log. `transfer` and `thumbnailTransfer` are each consumed once by
+ *   the executor and dropped.
+ * - nothing to send at all = neither `transfer` nor `thumbnailTransfer`: already `stored` (dedup)
+ *   or `failed` at validation. `transfer` alone may be absent while `thumbnailTransfer` is present —
+ *   that is a `stored` upload getting a thumbnail added; its bytes are immutable.
  */
 export interface UploadTicket {
     upload: UploadView;
     transfer?: UploadTransfer;
+    /** transfer instruction for the thumbnail, when the body declared one. absent = nothing to send */
+    thumbnailTransfer?: UploadTransfer;
 }
 
 export interface UploadStartBody {
@@ -220,7 +251,7 @@ export interface UploadService {
     send(id: string, body: UploadSendBody): Promise<UploadView>;
     /** confirm; the server verifies what it cannot see (presigned) and settles `status`. idempotent */
     complete(body: UploadCompleteBody): Promise<UploadCompleteResult>;
-    /** re-read (post-processing fields may arrive later) */
+    /** re-read for the current state */
     read(id: string): Promise<UploadView>;
 }
 

@@ -7,12 +7,12 @@
 ## 규칙
 
 1. `start` 응답 `list`는 요청 `list`와 길이·순서가 같다. 슬롯별 검증 실패는 `status: 'failed'` + `error`로 오고, HTTP 4xx가 아니다.
-2. `transfer`가 없는 슬롯은 보낼 바이트가 없다 — 이미 `stored`(dedup)이거나 `failed`다.
-3. `transfer`는 실행기가 한 번 소비하고 버린다. 저장·로그·에러 메시지에 넣지 않는다.
+2. `transfer`도 `thumbnailTransfer`도 없는 슬롯만 보낼 바이트가 없다 — 이미 `stored`(dedup)이거나 `failed`다.
+3. `transfer`와 `thumbnailTransfer`는 실행기가 한 번 소비하고 버린다. 저장·로그·에러 메시지에 넣지 않는다.
 4. 클라이언트는 id가 있는 모든 슬롯을 `complete`에 넣는다(실패한 슬롯은 `failure`와 함께). `complete`는 멱등이다.
 5. `status: 'stored'`인 응답에는 `url`이 반드시 있다. 그 외 상태의 `url`은 정의되지 않는다.
 6. `transfers`가 없으면 `['inline']`이다. 서버는 목록에서 그 파일 크기에 자기가 지원하는 첫 방식을 고르고, 없으면 그 슬롯을 `406 NOT ACCEPTABLE`로 실패시킨다.
-7. `UploadBody.id`를 넣은 `start`는 아직 `pending`인 업로드의 transfer 재발급이다(만료 대응).
+7. `UploadBody.id`를 넣은 `start`는 기존 업로드의 전송 재발급이다. `pending`이면 둘 다(만료 대응), `stored`면 `thumbnailTransfer`만 — 올라간 바이트는 바뀌지 않는다.
 8. `hash`는 sha256 hex(64)다. 있으면 서버는 검증하고 불일치를 `400 INVALID`로 거절한다. 없어도 받는다.
 
 ## HTTP 바인딩
@@ -28,10 +28,12 @@
 
 - 인가: 4연산 모두 호출자의 일반 API 인가. presigned URL만 무인가 hop.
 - 2차: 버킷 CORS `AllowedMethod PUT` + 앱 origin + preflight OPTIONS 허용. 3차: `ExposeHeaders: ETag`까지.
-- `url`은 안정적이어야 한다 — `upload$$` 스냅샷이 메시지에 박힌다.
+- 응답의 `url`·`thumbnail`은 **오래 쓰는 주소가 아니다.** 서버가 읽을 때마다 새로 발급할 수 있고 만료된다. 받을 때마다 쓰고, 저장하지 않는다.
+- 응답과 저장은 다르다. `UploadHead`는 모양일 뿐이라, 다른 모델이 `upload$$`로 담아 두는 스냅샷에는 주소 두 개를 넣지 않는다. 설명 필드만 담는다.
 - 서버는 `pending` 티켓을 TTL로 정리한다(구현).
 
 ## 버전 · 호환 규칙
 
 - 계약 변경은 **추가만**: 필드는 옵션으로 추가, LUT 값 추가, `UploadTransfer` 변형 추가(협상이 보호), 연산 추가. 제거는 `@deprecated` 한 버전 뒤(조직 전환형 `new ?? old`).
+- **1.5.0에서 `UploadHead.thumbnail`의 타입이 바뀌었다** — url 문자열에서 `UploadThumbnail` 객체로. 이 원칙을 깬 유일한 경우다. 당시 이 필드를 읽는 소비자가 없었다.
 - 절대 하지 않는 것: 옵션 → 필수 승격(`hash` 포함), `UploadView`/`UploadHead` 필드 제거, `status` 값의 의미 변경, `UploadInlineTransfer` 발급 중단.
