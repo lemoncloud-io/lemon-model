@@ -6,11 +6,11 @@
  *
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */
-import type { UploadHead, UploadRefs, UploadTicket, UploadView } from './types';
+import type { Upload, UploadTicket } from './types';
 import { UPLOAD_STATUS, UPLOAD_STEREO, UPLOAD_TRANSFER_KIND } from './types';
 
-/** a settled image as the server returns it after `complete` */
-export const SAMPLE_UPLOAD_STORED: UploadView = {
+/** a settled image as the server returns it after `complete`, with the preview the client sent */
+export const SAMPLE_UPLOAD_STORED: Upload = {
     id: 'up-001',
     status: UPLOAD_STATUS.stored,
     stereo: UPLOAD_STEREO.image,
@@ -20,26 +20,7 @@ export const SAMPLE_UPLOAD_STORED: UploadView = {
     url: 'https://cdn.example.com/up-001.png',
     width: 1024,
     height: 768,
-    createdAt: 1757894400000,
-    updatedAt: 1757894401000,
-};
-
-/** the head a message embeds under `upload$$` for the same upload */
-export const SAMPLE_UPLOAD_HEAD: UploadHead = {
-    id: 'up-001',
-    stereo: UPLOAD_STEREO.image,
-    name: 'photo.png',
-    contentType: 'image/png',
-    contentSize: 123456,
-    url: 'https://cdn.example.com/up-001.png',
-    width: 1024,
-    height: 768,
-};
-
-/** what a message view carries: both halves of the pair, never one */
-export const SAMPLE_UPLOAD_REFS: UploadRefs = {
-    uploadIds: ['up-001'],
-    upload$$: [SAMPLE_UPLOAD_HEAD],
+    thumbnail: { url: 'https://cdn.example.com/up-001-thumb.jpg', contentType: 'image/jpeg' },
 };
 
 /** start slot: inline ticket (roadmap 1) */

@@ -10,7 +10,7 @@
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */
 import type {
-    UploadBody,
+    UploadIntent,
     UploadCompleteItem,
     UploadFailure,
     UploadFailureCode,
@@ -18,7 +18,7 @@ import type {
     UploadTicket,
     UploadTransfer,
     UploadTransferKind,
-    UploadView,
+    Upload,
 } from '../types';
 import { UPLOAD_FAILURE_CODE, UPLOAD_FAILURE_SOURCE } from '../types';
 import type { UploadBatchProgressSink, UploadProgressSink } from './progress';
@@ -65,7 +65,7 @@ const runPooled = async <T>(count: number, limit: number, task: (index: number) 
     return results;
 };
 
-const asBody = async (source: UploadSource): Promise<UploadBody> => ({
+const asIntent = async (source: UploadSource): Promise<UploadIntent> => ({
     name: source.name,
     contentType: source.contentType,
     contentSize: source.contentSize,
@@ -87,13 +87,13 @@ export class UploadEngine {
     public async upload(
         sources: ReadonlyArray<UploadSource>,
         onProgress?: UploadBatchProgressSink,
-    ): Promise<UploadView[]> {
+    ): Promise<Upload[]> {
         const tracker = new UploadProgressTracker(
             sources.map(source => source.contentSize),
             onProgress,
         );
         tracker.publish();
-        const list = await Promise.all(sources.map(asBody));
+        const list = await Promise.all(sources.map(asIntent));
         const { list: tickets } = await this.service.start({ list, transfers: this.kinds });
         const limit = this.options?.concurrency ?? UPLOAD_DEFAULT_CONCURRENCY;
         const receipts = await runPooled(tickets.length, limit, i =>
@@ -104,7 +104,7 @@ export class UploadEngine {
         const pending = receipts.filter((item): item is UploadCompleteItem => !!item);
         const settled = pending.length ? (await this.service.complete({ list: pending })).list : [];
         const byId = new Map(
-            settled.filter(view => !!view.id).map((view): [string, UploadView] => [view.id as string, view]),
+            settled.filter(view => !!view.id).map((view): [string, Upload] => [view.id as string, view]),
         );
         return tickets.map(ticket => (ticket.upload.id && byId.get(ticket.upload.id)) || ticket.upload);
     }

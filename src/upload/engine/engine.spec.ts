@@ -13,7 +13,7 @@ import type {
     UploadStartBody,
     UploadStartResult,
     UploadTicket,
-    UploadView,
+    Upload,
 } from '../types';
 import { UPLOAD_FAILURE_CODE, UPLOAD_FAILURE_SOURCE, UPLOAD_STATUS, UPLOAD_TRANSFER_KIND } from '../types';
 import { SAMPLE_UPLOAD_TICKET_INLINE, SAMPLE_UPLOAD_TICKET_PRESIGNED } from '../testing';
@@ -36,14 +36,14 @@ class FakeUploadService implements UploadService {
         return { list: this.tickets };
     }
 
-    public async send(): Promise<UploadView> {
+    public async send(): Promise<Upload> {
         throw new Error('400 INVALID - send() must go through the executor');
     }
 
     public async complete(body: UploadCompleteBody): Promise<UploadCompleteResult> {
         this.completed.push(body);
         const list = body.list.map(
-            (item): UploadView => ({
+            (item): Upload => ({
                 id: item.id,
                 status: item.failure ? UPLOAD_STATUS.failed : UPLOAD_STATUS.stored,
                 url: item.failure ? undefined : `https://cdn.example.com/${item.id}.png`,
@@ -52,7 +52,7 @@ class FakeUploadService implements UploadService {
         return { list };
     }
 
-    public async read(): Promise<UploadView> {
+    public async read(): Promise<Upload> {
         throw new Error('404 NOT FOUND - read() not wired');
     }
 }

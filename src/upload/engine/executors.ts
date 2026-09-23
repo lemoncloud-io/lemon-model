@@ -12,7 +12,7 @@ import type {
     UploadInlineTransfer,
     UploadPresignedPutTransfer,
     UploadSendBody,
-    UploadView,
+    Upload,
 } from '../types';
 import { UPLOAD_FAILURE_CODE, UPLOAD_FAILURE_SOURCE, UPLOAD_TRANSFER_KIND } from '../types';
 import type { UploadSource, UploadTransferExecutor } from './engine';
@@ -25,7 +25,7 @@ import { asContentBytes } from './progress';
  * - a fetch-based API adapter is `(id, body) => service.send(id, body)` and reports nothing;
  * - an `XMLHttpRequest`-based one forwards `upload.onprogress` through `onProgress`.
  */
-export type InlineSendCall = (id: string, body: UploadSendBody, onProgress?: UploadWireProgress) => Promise<UploadView>;
+export type InlineSendCall = (id: string, body: UploadSendBody, onProgress?: UploadWireProgress) => Promise<Upload>;
 
 /** roadmap 1 — the only place that knows bytes go to our API as base64 */
 export class InlineExecutor implements UploadTransferExecutor<UploadInlineTransfer> {
