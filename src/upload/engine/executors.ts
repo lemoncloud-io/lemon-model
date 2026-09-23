@@ -11,7 +11,7 @@ import type {
     UploadCompleteItem,
     UploadInlineTransfer,
     UploadPresignedPutTransfer,
-    UploadSendBody,
+    UploadSendRequest,
     Upload,
 } from '../types';
 import { UPLOAD_FAILURE_CODE, UPLOAD_FAILURE_SOURCE, UPLOAD_TRANSFER_KIND } from '../types';
@@ -25,9 +25,9 @@ import { asContentBytes } from './progress';
  * - a fetch-based API adapter is `(id, body) => service.send(id, body)` and reports nothing;
  * - an `XMLHttpRequest`-based one forwards `upload.onprogress` through `onProgress`.
  */
-export type InlineSendCall = (id: string, body: UploadSendBody, onProgress?: UploadWireProgress) => Promise<Upload>;
+export type InlineSendCall = (id: string, body: UploadSendRequest, onProgress?: UploadWireProgress) => Promise<Upload>;
 
-/** roadmap 1 — the only place that knows bytes go to our API as base64 */
+/** inline transfer — the only place that knows bytes go to the API as base64 */
 export class InlineExecutor implements UploadTransferExecutor<UploadInlineTransfer> {
     public readonly kind = UPLOAD_TRANSFER_KIND.inline;
 
@@ -47,7 +47,7 @@ export class InlineExecutor implements UploadTransferExecutor<UploadInlineTransf
             return { id, failure: { source: UPLOAD_FAILURE_SOURCE.client, code: UPLOAD_FAILURE_CODE.tooLarge } };
         }
         try {
-            const body: UploadSendBody = { content: this.toBase64(await source.bytes()) };
+            const body: UploadSendRequest = { content: this.toBase64(await source.bytes()) };
             // wire bytes are base64 JSON (~4/3 of the send): report in send bytes
             await this.send(id, body, (loaded, total) => onProgress(asContentBytes(loaded, total, source.contentSize)));
             return { id };
@@ -68,7 +68,7 @@ export type RawPut = (
     onProgress?: UploadWireProgress,
 ) => Promise<{ status: number; code?: string }>;
 
-/** roadmap 2 — added next to `InlineExecutor`; `UploadEngine` is untouched */
+/** presigned PUT transfer — raw bytes straight to storage */
 export class PresignedPutExecutor implements UploadTransferExecutor<UploadPresignedPutTransfer> {
     public readonly kind = UPLOAD_TRANSFER_KIND.presignedPut;
 

@@ -1,17 +1,17 @@
 /**
  * `upload/engine/engine.spec.ts`
- * - drives the engine against a fake `UploadService` built from the contract fixtures
+ * - drives the engine against a fake `UploadSupportable` built from the contract fixtures
  *   (`lemon-model/upload/testing`), so a client spec and a server spec assert the same payloads.
  *
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */
 import { expect2 } from '../../cores/index.spec';
 import type {
-    UploadCompleteBody,
+    UploadCompleteRequest,
     UploadCompleteResult,
-    UploadService,
-    UploadStartBody,
+    UploadStartRequest,
     UploadStartResult,
+    UploadSupportable,
     UploadTicket,
     Upload,
 } from '../types';
@@ -29,13 +29,13 @@ import type { UploadBatchProgress } from './progress';
 import { UploadProgressTracker } from './progress';
 
 /** a `start` answer of exactly these tickets; `complete` settles each item by its `failure` */
-class FakeUploadService implements UploadService {
-    public readonly started: UploadStartBody[] = [];
-    public readonly completed: UploadCompleteBody[] = [];
+class FakeUploadService implements UploadSupportable {
+    public readonly started: UploadStartRequest[] = [];
+    public readonly completed: UploadCompleteRequest[] = [];
 
     public constructor(private readonly tickets: UploadTicket[]) {}
 
-    public async start(body: UploadStartBody): Promise<UploadStartResult> {
+    public async start(body: UploadStartRequest): Promise<UploadStartResult> {
         this.started.push(body);
         return { list: this.tickets };
     }
@@ -44,7 +44,7 @@ class FakeUploadService implements UploadService {
         throw new Error('400 INVALID - send() must go through the executor');
     }
 
-    public async complete(body: UploadCompleteBody): Promise<UploadCompleteResult> {
+    public async complete(body: UploadCompleteRequest): Promise<UploadCompleteResult> {
         this.completed.push(body);
         const list = body.list.map(
             (item): Upload => ({
@@ -268,9 +268,7 @@ describe('upload/engine', () => {
 
         const uploads = await engine.upload([sourceOf('a.png', 100)], p => snapshots.push(p));
 
-        expect2(() => service.started[0].list).toEqual([
-            { name: 'a.png', contentType: 'image/png', contentSize: 100 },
-        ]);
+        expect2(() => service.started[0].list).toEqual([{ name: 'a.png', contentType: 'image/png', contentSize: 100 }]);
         expect2(() => service.completed[0].list).toEqual([{ id: 'up-002' }]);
         expect2(() => uploads.map(upload => upload.status)).toEqual(['stored']);
         expect2(() => [snapshots[0].totalBytes, snapshots[snapshots.length - 1].ratio]).toEqual([100, 1]);

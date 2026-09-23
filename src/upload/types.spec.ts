@@ -1,6 +1,6 @@
 /**
  * `upload/types.spec.ts`
- * - pure function and LUT tests for the upload contract (SPEC.md §2.2).
+ * - pure function and LUT tests for the upload contract.
  *
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */

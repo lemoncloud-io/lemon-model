@@ -3,7 +3,7 @@
  * - progress is a CLIENT-LOCAL signal: nothing here travels on the wire and no server ever sees it.
  *   the server's knowledge of progress differs per transfer kind (a presigned PUT it cannot see at all),
  *   so the contract deliberately carries none of it.
- * - scope A: per-file percent + one batch percent. everything is measured in bytes of the ORIGINAL
+ * - per-file percent + one batch percent. everything is measured in bytes of the ORIGINAL
  *   content, never in wire bytes, so the bar means the same thing whichever executor runs.
  *
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.

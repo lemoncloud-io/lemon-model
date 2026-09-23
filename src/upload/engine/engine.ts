@@ -13,11 +13,11 @@ import type {
     Upload,
     UploadCompleteItem,
     UploadContent,
+    UploadDirectTransfer,
     UploadFailure,
     UploadFailureCode,
     UploadIntent,
-    UploadPresignedPutTransfer,
-    UploadService,
+    UploadSupportable,
     UploadTicket,
     UploadTransfer,
     UploadTransferKind,
@@ -36,7 +36,7 @@ export interface UploadContentSource {
     /** pixel size for image/video; echoed into the intent so a list screen can reserve the box */
     width?: number;
     height?: number;
-    /** whole send (roadmap 1·2 sizes) */
+    /** the whole payload in one call */
     bytes(): Promise<Uint8Array>;
     /** sha256 hex(64) when this shell chooses to hash at send time; omit to skip */
     hash?(): Promise<string | undefined>;
@@ -108,7 +108,7 @@ export class UploadEngine {
     private readonly kinds: UploadTransferKind[];
 
     public constructor(
-        private readonly service: UploadService,
+        private readonly service: UploadSupportable,
         private readonly executors: ReadonlyArray<UploadTransferExecutor>,
         private readonly options?: { concurrency?: number },
     ) {
@@ -193,7 +193,7 @@ export class UploadEngine {
      */
     private async transferThumbnail(
         id: string,
-        transfer: UploadPresignedPutTransfer | undefined,
+        transfer: UploadDirectTransfer | undefined,
         source: UploadSource,
         onProgress: UploadProgressSink,
     ): Promise<void> {
@@ -252,7 +252,7 @@ export const asApiFailure = (error: unknown): UploadFailure => {
     };
 };
 
-/** S3 error `<Code>` -> normalized code (roadmap 2). unknown codes fall back by status */
+/** S3 error `<Code>` -> normalized code. unknown codes fall back by status */
 const STORAGE_CODES: Record<string, UploadFailureCode> = {
     SignatureDoesNotMatch: UPLOAD_FAILURE_CODE.signature,
     AccessDenied: UPLOAD_FAILURE_CODE.expired,

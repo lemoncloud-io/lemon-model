@@ -14,7 +14,7 @@
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */
 
-/** kind of stored content. same vocabulary as lemon-uploads-api `MediaStereo` minus its internal markers */
+/** kind of stored content */
 export const UPLOAD_STEREO = {
     image: 'image',
     video: 'video',
@@ -34,11 +34,11 @@ export const UPLOAD_STATUS = {
 } as const;
 export type UploadStatus = typeof UPLOAD_STATUS[keyof typeof UPLOAD_STATUS];
 
-/** how bytes travel. the only axis that changes across the roadmap */
+/** how bytes travel. a new transfer method arrives as a new kind; the flow around it does not change */
 export const UPLOAD_TRANSFER_KIND = {
-    /** base64 JSON to the API via the `send` operation (roadmap 1) */
+    /** base64 in a JSON body, through the `send` operation */
     inline: 'inline',
-    /** HTTP PUT straight to storage with a server-issued url + headers (roadmap 2) */
+    /** HTTP PUT straight to storage, to a server-issued url with its headers */
     presignedPut: 'presigned-put',
 } as const;
 export type UploadTransferKind = typeof UPLOAD_TRANSFER_KIND[keyof typeof UPLOAD_TRANSFER_KIND];
@@ -111,7 +111,7 @@ export type UploadStored = Upload & UploadResource & { id: string };
 export const isUploadStored = (upload: Upload): upload is UploadStored =>
     upload.status === UPLOAD_STATUS.stored && typeof upload.id === 'string' && typeof upload.url === 'string';
 
-/** transfer instruction (roadmap 1): send base64 through `UploadService.send()` */
+/** transfer instruction: send base64 through `UploadSupportable.send()` */
 export interface UploadInlineTransfer {
     kind: typeof UPLOAD_TRANSFER_KIND.inline;
     /** max original bytes (before base64) this server accepts inline */
@@ -119,7 +119,7 @@ export interface UploadInlineTransfer {
 }
 
 /**
- * transfer instruction (roadmap 2): PUT the raw bytes to `url` with `headers` verbatim.
+ * transfer instruction: PUT the raw bytes to `url` with `headers` verbatim.
  * - `url` is a credential. never log, persist, or put it in an error message.
  * - `expiresAt` is an upper bound only (signing credentials may expire earlier). on 403 re-`start` with `id`.
  */
@@ -143,6 +143,14 @@ export interface UploadPresignedPutTransfer {
 export type UploadTransfer = UploadInlineTransfer | UploadPresignedPutTransfer;
 
 /**
+ * a transfer that carries its own destination, so it can deliver any payload of an upload.
+ * - `inline` is not one: it goes through `send`, which addresses the whole upload, so a thumbnail
+ *   sent that way would overwrite the original.
+ * - a new kind is listed here explicitly, never by default.
+ */
+export type UploadDirectTransfer = UploadPresignedPutTransfer;
+
+/**
  * one slot of `start`'s answer.
  * - `upload` is safe to store and log. `transfer` and `thumbnailTransfer` are each consumed once by
  *   the executor and dropped.
@@ -153,36 +161,31 @@ export type UploadTransfer = UploadInlineTransfer | UploadPresignedPutTransfer;
 export interface UploadTicket {
     upload: Upload;
     transfer?: UploadTransfer;
-    /**
-     * transfer instruction for the thumbnail, when the intent declared one. absent = nothing to send.
-     * - it is never `inline`: the `send` operation addresses the upload, not one of its payloads,
-     *   so inline bytes would land on the original. a server with no addressable transfer for a
-     *   thumbnail simply omits this and stores the original alone.
-     */
-    thumbnailTransfer?: UploadPresignedPutTransfer;
+    /** the thumbnail's transfer, if the intent declared one and the server can issue it */
+    thumbnailTransfer?: UploadDirectTransfer;
 }
 
-/** body of the `start` operation */
-export interface UploadStartBody {
+/** request of the `start` operation */
+export interface UploadStartRequest {
     list: UploadIntent[];
     /** transfer kinds this client can execute, preferred first. absent = `['inline']` */
     transfers?: UploadTransferKind[];
 }
 
-/** same length and order as `UploadStartBody.list` */
+/** same length and order as `UploadStartRequest.list` */
 export interface UploadStartResult {
     list: UploadTicket[];
 }
 
-/** body of the `send` operation (inline transfer only) */
-export interface UploadSendBody {
+/** request of the `send` operation (inline transfer only) */
+export interface UploadSendRequest {
     /** base64 of the whole content; size must match the declared `contentSize` */
     content: string;
 }
 
 /** who produced a failure */
 export const UPLOAD_FAILURE_SOURCE = {
-    /** our API answered with an error */
+    /** the upload API answered with an error */
     api: 'api',
     /** the storage endpoint (presigned PUT) answered with an error */
     storage: 'storage',
@@ -227,27 +230,27 @@ export interface UploadCompleteItem {
     failure?: UploadFailure;
 }
 
-/** body of the `complete` operation */
-export interface UploadCompleteBody {
+/** request of the `complete` operation */
+export interface UploadCompleteRequest {
     list: UploadCompleteItem[];
 }
 
-/** same length and order as `UploadCompleteBody.list` */
+/** same length and order as `UploadCompleteRequest.list` */
 export interface UploadCompleteResult {
     list: Upload[];
 }
 
 /**
- * the four operations. the server controller and the client API adapter both implement this.
+ * the four operations. a server exposes them over `UPLOAD_ROUTES`; a client adapter implements this to call them.
  * - all four require the caller's normal API auth; a presigned url is the only unauthenticated hop.
  */
-export interface UploadService {
+export interface UploadSupportable {
     /** declare intents; get tickets. validation failures come back per slot as `failed`, never as HTTP 4xx */
-    start(body: UploadStartBody): Promise<UploadStartResult>;
+    start(body: UploadStartRequest): Promise<UploadStartResult>;
     /** inline transfer: deliver the bytes of one pending upload */
-    send(id: string, body: UploadSendBody): Promise<Upload>;
+    send(id: string, body: UploadSendRequest): Promise<Upload>;
     /** confirm; the server verifies what it cannot see (presigned) and settles `status`. idempotent */
-    complete(body: UploadCompleteBody): Promise<UploadCompleteResult>;
+    complete(body: UploadCompleteRequest): Promise<UploadCompleteResult>;
     /** re-read for the current state */
     read(id: string): Promise<Upload>;
 }

@@ -23,7 +23,7 @@ export const SAMPLE_UPLOAD_STORED: Upload = {
     thumbnail: { url: 'https://cdn.example.com/up-001-thumb.jpg', contentType: 'image/jpeg' },
 };
 
-/** start slot: inline ticket (roadmap 1) */
+/** start slot: inline ticket */
 export const SAMPLE_UPLOAD_TICKET_INLINE: UploadTicket = {
     upload: {
         id: 'up-002',
@@ -36,7 +36,7 @@ export const SAMPLE_UPLOAD_TICKET_INLINE: UploadTicket = {
     transfer: { kind: UPLOAD_TRANSFER_KIND.inline, maxBytes: 4000000 },
 };
 
-/** start slot: presigned ticket (roadmap 2) */
+/** start slot: presigned PUT ticket */
 export const SAMPLE_UPLOAD_TICKET_PRESIGNED: UploadTicket = {
     upload: {
         id: 'up-003',
