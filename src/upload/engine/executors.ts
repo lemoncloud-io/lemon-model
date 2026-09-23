@@ -15,7 +15,7 @@ import type {
     Upload,
 } from '../types';
 import { UPLOAD_FAILURE_CODE, UPLOAD_FAILURE_SOURCE, UPLOAD_TRANSFER_KIND } from '../types';
-import type { UploadSource, UploadTransferExecutor } from './engine';
+import type { UploadContentSource, UploadTransferExecutor } from './engine';
 import { asApiFailure, asStorageFailure } from './engine';
 import type { UploadProgressSink, UploadWireProgress } from './progress';
 import { asContentBytes } from './progress';
@@ -40,7 +40,7 @@ export class InlineExecutor implements UploadTransferExecutor<UploadInlineTransf
     public async run(
         id: string,
         transfer: UploadInlineTransfer,
-        source: UploadSource,
+        source: UploadContentSource,
         onProgress: UploadProgressSink,
     ): Promise<UploadCompleteItem> {
         if (source.contentSize > transfer.maxBytes) {
@@ -77,7 +77,7 @@ export class PresignedPutExecutor implements UploadTransferExecutor<UploadPresig
     public async run(
         id: string,
         transfer: UploadPresignedPutTransfer,
-        source: UploadSource,
+        source: UploadContentSource,
         onProgress: UploadProgressSink,
     ): Promise<UploadCompleteItem> {
         const res = await this.put(transfer.url, transfer.headers, await source.bytes(), (loaded, total) =>

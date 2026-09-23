@@ -56,6 +56,31 @@ export const SAMPLE_UPLOAD_TICKET_PRESIGNED: UploadTicket = {
     },
 };
 
+/**
+ * start slot for an upload that is already `stored` and is only taking a thumbnail.
+ * - `transfer` absent + `thumbnailTransfer` present: the original's bytes are immutable.
+ * - an engine that returns early on a missing `transfer` silently drops the preview.
+ */
+export const SAMPLE_UPLOAD_TICKET_THUMBNAIL_ONLY: UploadTicket = {
+    upload: {
+        id: 'up-001',
+        status: UPLOAD_STATUS.stored,
+        stereo: UPLOAD_STEREO.image,
+        name: 'photo.png',
+        contentType: 'image/png',
+        contentSize: 123456,
+        url: 'https://cdn.example.com/up-001.png',
+    },
+    thumbnailTransfer: {
+        kind: UPLOAD_TRANSFER_KIND.presignedPut,
+        method: 'PUT',
+        url: 'https://storage.example.com/up-001-thumb?X-Amz-Signature=masked',
+        headers: { 'content-type': 'image/jpeg' },
+        maxBytes: 200000,
+        expiresAt: 1757895300000,
+    },
+};
+
 /** start slot rejected at validation: no id, nothing to transfer or complete */
 export const SAMPLE_UPLOAD_REJECTED: UploadTicket = {
     upload: {
