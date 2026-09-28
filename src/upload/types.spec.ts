@@ -1,6 +1,6 @@
 /**
  * `upload/types.spec.ts`
- * - pure function and LUT tests for the upload contract (SPEC.md §2.2).
+ * - pure function and LUT tests for the upload contract.
  *
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */
@@ -13,13 +13,13 @@ import {
     UPLOAD_STEREO,
     UPLOAD_TRANSFER_KIND,
     uploadStereoOf,
-    UploadView,
+    Upload,
 } from './types';
 
 describe('upload/types', () => {
     describe('isUploadStored()', () => {
         it('is true only when status is stored and id/url are both strings', () => {
-            const stored: UploadView = {
+            const stored: Upload = {
                 id: 'up-001',
                 status: 'stored',
                 url: 'https://cdn.example.com/up-001.png',
@@ -28,12 +28,12 @@ describe('upload/types', () => {
         });
 
         it('is false for pending, failed, and stored-without-id/url', () => {
-            expect2(() => isUploadStored({ status: 'pending' } as UploadView)).toEqual(false);
-            expect2(() => isUploadStored({ status: 'failed' } as UploadView)).toEqual(false);
+            expect2(() => isUploadStored({ status: 'pending' } as Upload)).toEqual(false);
+            expect2(() => isUploadStored({ status: 'failed' } as Upload)).toEqual(false);
             expect2(() =>
-                isUploadStored({ status: 'stored', url: 'https://cdn.example.com/up-001.png' } as UploadView),
+                isUploadStored({ status: 'stored', url: 'https://cdn.example.com/up-001.png' } as Upload),
             ).toEqual(false);
-            expect2(() => isUploadStored({ status: 'stored', id: 'up-001' } as UploadView)).toEqual(false);
+            expect2(() => isUploadStored({ status: 'stored', id: 'up-001' } as Upload)).toEqual(false);
         });
     });
 

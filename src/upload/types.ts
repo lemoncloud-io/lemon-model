@@ -6,12 +6,15 @@
  *   `UploadTransfer` variant it issues.
  * - runtime-neutral like `socket/`: no Node, DOM, or AWS SDK types. Storage coordinates
  *   (bucket, key, region) never appear here.
+ * - model-neutral: nothing here imports or names lemon-core's Model/View/Body/Head layers or the `$`
+ *   embed marker. two shapes carry the vocabulary instead — `UploadContent` (bytes as declared) and
+ *   `UploadResource` (bytes as stored, with an address). how a server maps them onto its own model
+ *   layer, and how it embeds an upload in another record, is the server's concern.
  *
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */
-import type { Body, View } from '../cores/transformer';
 
-/** kind of stored content. same vocabulary as lemon-uploads-api `MediaStereo` minus its internal markers */
+/** kind of stored content */
 export const UPLOAD_STEREO = {
     image: 'image',
     video: 'video',
@@ -26,76 +29,89 @@ export const UPLOAD_STATUS = {
     pending: 'pending',
     /** bytes durable and `url` valid */
     stored: 'stored',
-    /** terminal; `error` carries "<status> <LABEL> - <detail>" */
+    /** terminal; `error` carries the server's detail */
     failed: 'failed',
 } as const;
 export type UploadStatus = typeof UPLOAD_STATUS[keyof typeof UPLOAD_STATUS];
 
-/** how bytes travel. the only axis that changes across the roadmap */
+/** how bytes travel. a new transfer method arrives as a new kind; the flow around it does not change */
 export const UPLOAD_TRANSFER_KIND = {
-    /** base64 JSON to the API via the `send` operation (roadmap 1) */
+    /** base64 in a JSON body, through the `send` operation */
     inline: 'inline',
-    /** HTTP PUT straight to storage with a server-issued url + headers (roadmap 2) */
+    /** HTTP PUT straight to storage, to a server-issued url with its headers */
     presignedPut: 'presigned-put',
 } as const;
 export type UploadTransferKind = typeof UPLOAD_TRANSFER_KIND[keyof typeof UPLOAD_TRANSFER_KIND];
 
 /**
- * snapshot other models embed as `upload$` / `upload$$` (see `UploadRef`, `UploadRefs`).
- * - what a list screen needs to draw a tile or a file chip without a second fetch.
+ * one payload of bytes as the client declares it. it has no identity and no address of its own.
+ * - `contentType` and `contentSize` are required: the server picks the transfer and validates limits
+ *   from them before any byte moves.
  */
-export interface UploadHead {
-    id?: string;
-    stereo?: UploadStereo;
-    /** file name as the sender picked it */
-    name?: string;
-    /** MIME type */
-    contentType?: string;
-    /** size in bytes of the original content */
-    contentSize?: number;
-    /** stable url to serve; present iff status is `stored` */
-    url?: string;
-    /** thumbnail url; may arrive after `stored` (server post-processing) */
-    thumbnail?: string;
-    /** pixel size for image/video */
+export interface UploadContent {
+    contentType: string;
+    contentSize: number;
+    /** pixel size for image/video. declared by the client; the server does not verify it */
     width?: number;
     height?: number;
-}
-
-/** response layout of one upload */
-export interface UploadView extends View, UploadHead {
-    status: UploadStatus;
-    /** sha256 hex(64) of the content, when known to the server */
+    /**
+     * sha256 hex(64). optional forever: servers MUST accept uploads without it, MUST verify it when given.
+     * on a thumbnail the server MAY verify it the same way for that transfer; completion-time cross-check applies only to the original's hash.
+     */
     hash?: string;
 }
 
 /**
- * request layout of one upload intent.
- * - deviates from `XBody extends Body, Partial<XView>`: the three fields are required because
- *   the server picks the transfer and validates limits from them before any byte moves.
- * - inherited `id` set = re-issue the transfer of a still-`pending` upload (expired ticket).
+ * bytes the server holds, and where to fetch them.
+ * - `url` may be time-limited and re-issued on every read: use it when received, never persist it.
+ * - the content fields are what the server can vouch for, so every one is optional: a server that
+ *   only confirmed the object exists (a thumbnail) knows nothing beyond the address.
  */
-export interface UploadBody extends Body {
+export interface UploadResource extends Partial<UploadContent> {
+    url: string;
+}
+
+/**
+ * one upload intent: a slot of `start`.
+ * - `id` set = re-issue transfers for an existing upload. for a still-`pending` one (expired ticket)
+ *   that is both transfers; for a `stored` one it is `thumbnailTransfer` only, because stored bytes
+ *   are immutable.
+ */
+export interface UploadIntent extends UploadContent {
+    id?: string;
+    /** file name as the sender picked it */
     name: string;
-    contentType: string;
-    contentSize: number;
-    /** sha256 hex(64). optional forever: servers MUST accept uploads without it, MUST verify it when given */
-    hash?: string;
+    /** a preview the client made. the server stores it beside the original and never derives it */
+    thumbnail?: UploadContent;
 }
 
-/** single reference pair. add both fields or neither */
-export interface UploadRef {
-    uploadId?: string;
-    upload$?: UploadHead;
+/**
+ * one upload as the server reports it: the declaration, its lifecycle, and — once `stored` — its address.
+ * - the content fields echo the intent. `url` is present iff `status` is `stored` (see `UploadStored`).
+ * - a server may answer with more fields than these; a client relies on these only.
+ */
+export interface Upload extends Partial<UploadContent> {
+    /** absent only for a slot rejected at `start` validation: nothing was created */
+    id?: string;
+    status: UploadStatus;
+    /** human-readable detail when `failed`; the format is the server's. branch on `status`, not on this string */
+    error?: string;
+    stereo?: UploadStereo;
+    /** file name as the sender picked it */
+    name?: string;
+    /** url to serve; may be time-limited and re-issued on every read — do not persist it. present iff `stored` */
+    url?: string;
+    /** preview stored alongside the original: present only once the intent declared one and its bytes arrived */
+    thumbnail?: UploadResource;
 }
 
-/** array reference pair. add both fields or neither */
-export interface UploadRefs {
-    uploadIds?: string[];
-    upload$$?: UploadHead[];
-}
+/** an upload whose bytes are durable: it has an `id` and it is an `UploadResource` */
+export type UploadStored = Upload & UploadResource & { id: string };
 
-/** transfer instruction (roadmap 1): send base64 through `UploadService.send()` */
+export const isUploadStored = (upload: Upload): upload is UploadStored =>
+    upload.status === UPLOAD_STATUS.stored && typeof upload.id === 'string' && typeof upload.url === 'string';
+
+/** transfer instruction: send base64 through `UploadSupportable.send()` */
 export interface UploadInlineTransfer {
     kind: typeof UPLOAD_TRANSFER_KIND.inline;
     /** max original bytes (before base64) this server accepts inline */
@@ -103,7 +119,7 @@ export interface UploadInlineTransfer {
 }
 
 /**
- * transfer instruction (roadmap 2): PUT the raw bytes to `url` with `headers` verbatim.
+ * transfer instruction: PUT the raw bytes to `url` with `headers` verbatim.
  * - `url` is a credential. never log, persist, or put it in an error message.
  * - `expiresAt` is an upper bound only (signing credentials may expire earlier). on 403 re-`start` with `id`.
  */
@@ -116,7 +132,7 @@ export interface UploadPresignedPutTransfer {
      * - EXCEPT the ones the user agent owns: `content-length` and `host`. `fetch` and
      *   `XMLHttpRequest` forbid setting them and the UA fills them from the request itself,
      *   so a shell adapter must drop them from this map before sending. The signature still
-     *   matches because the UA's value is the one that was signed. `[실측]`
+     *   matches because the UA's value is the one that was signed.
      */
     headers: Record<string, string>;
     maxBytes: number;
@@ -127,35 +143,49 @@ export interface UploadPresignedPutTransfer {
 export type UploadTransfer = UploadInlineTransfer | UploadPresignedPutTransfer;
 
 /**
+ * a transfer that carries its own destination, so it can deliver any payload of an upload.
+ * - `inline` is not one: it goes through `send`, which addresses the whole upload, so a thumbnail
+ *   sent that way would overwrite the original.
+ * - a new kind is listed here explicitly, never by default.
+ */
+export type UploadDirectTransfer = UploadPresignedPutTransfer;
+
+/**
  * one slot of `start`'s answer.
- * - `upload` is safe to store and log. `transfer` is consumed once by the executor and dropped.
- * - no `transfer` = nothing to send: already `stored` (dedup) or `failed` at validation.
+ * - `upload` is safe to store and log. `transfer` and `thumbnailTransfer` are each consumed once by
+ *   the executor and dropped.
+ * - nothing to send at all = neither `transfer` nor `thumbnailTransfer`: already `stored` (dedup)
+ *   or `failed` at validation. `transfer` alone may be absent while `thumbnailTransfer` is present —
+ *   that is a `stored` upload getting a thumbnail added; its bytes are immutable.
  */
 export interface UploadTicket {
-    upload: UploadView;
+    upload: Upload;
     transfer?: UploadTransfer;
+    /** the thumbnail's transfer, if the intent declared one and the server can issue it */
+    thumbnailTransfer?: UploadDirectTransfer;
 }
 
-export interface UploadStartBody {
-    list: UploadBody[];
+/** request of the `start` operation */
+export interface UploadStartRequest {
+    list: UploadIntent[];
     /** transfer kinds this client can execute, preferred first. absent = `['inline']` */
     transfers?: UploadTransferKind[];
 }
 
-/** same length and order as `UploadStartBody.list` */
+/** same length and order as `UploadStartRequest.list` */
 export interface UploadStartResult {
     list: UploadTicket[];
 }
 
-/** body of the `send` operation (inline transfer only) */
-export interface UploadSendBody {
+/** request of the `send` operation (inline transfer only) */
+export interface UploadSendRequest {
     /** base64 of the whole content; size must match the declared `contentSize` */
     content: string;
 }
 
 /** who produced a failure */
 export const UPLOAD_FAILURE_SOURCE = {
-    /** our API answered with an error */
+    /** the upload API answered with an error */
     api: 'api',
     /** the storage endpoint (presigned PUT) answered with an error */
     storage: 'storage',
@@ -200,28 +230,29 @@ export interface UploadCompleteItem {
     failure?: UploadFailure;
 }
 
-export interface UploadCompleteBody {
+/** request of the `complete` operation */
+export interface UploadCompleteRequest {
     list: UploadCompleteItem[];
 }
 
-/** same length and order as `UploadCompleteBody.list` */
+/** same length and order as `UploadCompleteRequest.list` */
 export interface UploadCompleteResult {
-    list: UploadView[];
+    list: Upload[];
 }
 
 /**
- * the four operations. the server controller and the client API adapter both implement this.
+ * the four operations. a server exposes them over `UPLOAD_ROUTES`; a client adapter implements this to call them.
  * - all four require the caller's normal API auth; a presigned url is the only unauthenticated hop.
  */
-export interface UploadService {
+export interface UploadSupportable {
     /** declare intents; get tickets. validation failures come back per slot as `failed`, never as HTTP 4xx */
-    start(body: UploadStartBody): Promise<UploadStartResult>;
+    start(body: UploadStartRequest): Promise<UploadStartResult>;
     /** inline transfer: deliver the bytes of one pending upload */
-    send(id: string, body: UploadSendBody): Promise<UploadView>;
+    send(id: string, body: UploadSendRequest): Promise<Upload>;
     /** confirm; the server verifies what it cannot see (presigned) and settles `status`. idempotent */
-    complete(body: UploadCompleteBody): Promise<UploadCompleteResult>;
-    /** re-read (post-processing fields may arrive later) */
-    read(id: string): Promise<UploadView>;
+    complete(body: UploadCompleteRequest): Promise<UploadCompleteResult>;
+    /** re-read for the current state */
+    read(id: string): Promise<Upload>;
 }
 
 /** HTTP binding relative to the server's upload base path (lemon-core `/{type}/{id}/{cmd}` shape) */
@@ -231,12 +262,6 @@ export const UPLOAD_ROUTES = {
     complete: { method: 'POST', path: '/complete' },
     read: { method: 'GET', path: '/{id}' },
 } as const;
-
-/** a view whose bytes are durable: `id` and `url` are guaranteed */
-export type UploadStoredView = UploadView & { id: string; url: string };
-
-export const isUploadStored = (view: UploadView): view is UploadStoredView =>
-    view.status === UPLOAD_STATUS.stored && typeof view.id === 'string' && typeof view.url === 'string';
 
 /** shared stereo derivation so an optimistic client tile and the server agree */
 export const uploadStereoOf = (contentType: string): UploadStereo | undefined => {

@@ -10,36 +10,58 @@
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */
 import type {
-    UploadBody,
+    Upload,
     UploadCompleteItem,
+    UploadContent,
+    UploadDirectTransfer,
     UploadFailure,
     UploadFailureCode,
-    UploadService,
+    UploadIntent,
+    UploadSupportable,
     UploadTicket,
     UploadTransfer,
     UploadTransferKind,
-    UploadView,
 } from '../types';
 import { UPLOAD_FAILURE_CODE, UPLOAD_FAILURE_SOURCE } from '../types';
 import type { UploadBatchProgressSink, UploadProgressSink } from './progress';
 import { UploadProgressTracker } from './progress';
 
-/** bytes provider; hides DOM `File`, RN uri, Electron path behind one shape */
-export interface UploadSource {
-    name: string;
+/**
+ * one payload of bytes a shell can hand over: the contract's `UploadContent`, with the bytes behind a call.
+ * - the contract's `hash` is a string and this one is a call, so this does not extend `UploadContent`.
+ */
+export interface UploadContentSource {
     contentType: string;
     contentSize: number;
-    /** whole send (roadmap 1·2 sizes) */
+    /** pixel size for image/video; echoed into the intent so a list screen can reserve the box */
+    width?: number;
+    height?: number;
+    /** the whole payload in one call */
     bytes(): Promise<Uint8Array>;
     /** sha256 hex(64) when this shell chooses to hash at send time; omit to skip */
     hash?(): Promise<string | undefined>;
 }
 
+/** bytes provider; hides DOM `File`, RN uri, Electron path behind one shape */
+export interface UploadSource extends UploadContentSource {
+    name: string;
+    /** a preview this shell already made. the engine sends it beside the original and never derives one */
+    thumbnail?: UploadContentSource;
+}
+
 /** moves bytes for one transfer kind and reports the receipt the server expects in `complete` */
 export interface UploadTransferExecutor<T extends UploadTransfer = UploadTransfer> {
     readonly kind: T['kind'];
-    /** `onProgress` is optional to CALL, not to accept: an executor that cannot observe bytes never calls it */
-    run(id: string, transfer: T, source: UploadSource, onProgress: UploadProgressSink): Promise<UploadCompleteItem>;
+    /**
+     * `onProgress` is optional to CALL, not to accept: an executor that cannot observe bytes never calls it.
+     * - `source` is a payload, not a file: the engine passes `source.thumbnail` here too, and that has no `name`.
+     */
+    run(
+        id: string,
+        transfer: T,
+        source: UploadContentSource,
+        onProgress: UploadProgressSink,
+    ): Promise<UploadCompleteItem>;
 }
 
 /**
@@ -65,18 +87,28 @@ const runPooled = async <T>(count: number, limit: number, task: (index: number) 
     return results;
 };
 
-const asBody = async (source: UploadSource): Promise<UploadBody> => ({
-    name: source.name,
+const asContent = async (source: UploadContentSource): Promise<UploadContent> => ({
     contentType: source.contentType,
     contentSize: source.contentSize,
+    width: source.width,
+    height: source.height,
     hash: source.hash ? await source.hash() : undefined,
 });
+
+const asIntent = async (source: UploadSource): Promise<UploadIntent> => ({
+    ...(await asContent(source)),
+    name: source.name,
+    thumbnail: source.thumbnail ? await asContent(source.thumbnail) : undefined,
+});
+
+/** bytes this source puts on the wire in total; the thumbnail rides along so the bar counts it */
+const sizeOf = (source: UploadSource): number => source.contentSize + (source.thumbnail?.contentSize ?? 0);
 
 export class UploadEngine {
     private readonly kinds: UploadTransferKind[];
 
     public constructor(
-        private readonly service: UploadService,
+        private readonly service: UploadSupportable,
         private readonly executors: ReadonlyArray<UploadTransferExecutor>,
         private readonly options?: { concurrency?: number },
     ) {
@@ -84,16 +116,10 @@ export class UploadEngine {
     }
 
     /** returns one view per source, in order: `stored`, or `failed` with the reason. `onProgress` gets a snapshot per change */
-    public async upload(
-        sources: ReadonlyArray<UploadSource>,
-        onProgress?: UploadBatchProgressSink,
-    ): Promise<UploadView[]> {
-        const tracker = new UploadProgressTracker(
-            sources.map(source => source.contentSize),
-            onProgress,
-        );
+    public async upload(sources: ReadonlyArray<UploadSource>, onProgress?: UploadBatchProgressSink): Promise<Upload[]> {
+        const tracker = new UploadProgressTracker(sources.map(sizeOf), onProgress);
         tracker.publish();
-        const list = await Promise.all(sources.map(asBody));
+        const list = await Promise.all(sources.map(asIntent));
         const { list: tickets } = await this.service.start({ list, transfers: this.kinds });
         const limit = this.options?.concurrency ?? UPLOAD_DEFAULT_CONCURRENCY;
         const receipts = await runPooled(tickets.length, limit, i =>
@@ -104,7 +130,7 @@ export class UploadEngine {
         const pending = receipts.filter((item): item is UploadCompleteItem => !!item);
         const settled = pending.length ? (await this.service.complete({ list: pending })).list : [];
         const byId = new Map(
-            settled.filter(view => !!view.id).map((view): [string, UploadView] => [view.id as string, view]),
+            settled.filter(upload => !!upload.id).map((upload): [string, Upload] => [upload.id as string, upload]),
         );
         return tickets.map(ticket => (ticket.upload.id && byId.get(ticket.upload.id)) || ticket.upload);
     }
@@ -139,13 +165,49 @@ export class UploadEngine {
         const id = ticket.upload.id;
         // rejected at start: nothing was created, nothing to complete
         if (!id) return undefined;
-        // no instruction: already stored (dedup) — still confirmed through complete
-        if (!ticket.transfer) return { id };
-        const executor = this.executors.find(candidate => candidate.kind === ticket.transfer?.kind);
+        const receipt = await this.transferOriginal(id, ticket.transfer, source, onProgress);
+        // a failed original has nothing to preview; otherwise the thumbnail rides after it (never with it)
+        if (!receipt.failure) await this.transferThumbnail(id, ticket.thumbnailTransfer, source, onProgress);
+        return receipt;
+    }
+
+    private async transferOriginal(
+        id: string,
+        transfer: UploadTransfer | undefined,
+        source: UploadSource,
+        onProgress: UploadProgressSink,
+    ): Promise<UploadCompleteItem> {
+        // no instruction: already stored (dedup, or a stored upload taking only a thumbnail) — complete still confirms it
+        if (!transfer) return { id };
+        const executor = this.executors.find(candidate => candidate.kind === transfer.kind);
         if (!executor)
             return { id, failure: { source: UPLOAD_FAILURE_SOURCE.client, code: UPLOAD_FAILURE_CODE.notAcceptable } };
-        // NOTE: `ticket.transfer` must not be logged or stored — it may carry a credential url
-        return executor.run(id, ticket.transfer, source, onProgress);
+        // NOTE: `transfer` must not be logged or stored — it may carry a credential url
+        return executor.run(id, transfer, source, onProgress);
+    }
+
+    /**
+     * the preview is subordinate: whatever happens here never reaches `complete`.
+     * - `UploadCompleteItem` is one per upload, so reporting a thumbnail failure would fail the original.
+     * - the server settles the thumbnail by looking at storage at `complete` time, so silence is enough.
+     */
+    private async transferThumbnail(
+        id: string,
+        transfer: UploadDirectTransfer | undefined,
+        source: UploadSource,
+        onProgress: UploadProgressSink,
+    ): Promise<void> {
+        const thumbnail = source.thumbnail;
+        if (!transfer || !thumbnail) return;
+        const executor = this.executors.find(candidate => candidate.kind === transfer.kind);
+        if (!executor) return;
+        // the original's bytes are already counted, so the thumbnail reports on top of them
+        const base = source.contentSize;
+        try {
+            await executor.run(id, transfer, thumbnail, sent => onProgress(base + sent));
+        } catch {
+            // swallowed on purpose: see the note above
+        }
     }
 }
 
@@ -190,7 +252,7 @@ export const asApiFailure = (error: unknown): UploadFailure => {
     };
 };
 
-/** S3 error `<Code>` -> normalized code (roadmap 2). unknown codes fall back by status */
+/** S3 error `<Code>` -> normalized code. unknown codes fall back by status */
 const STORAGE_CODES: Record<string, UploadFailureCode> = {
     SignatureDoesNotMatch: UPLOAD_FAILURE_CODE.signature,
     AccessDenied: UPLOAD_FAILURE_CODE.expired,

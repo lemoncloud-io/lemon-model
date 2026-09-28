@@ -1,49 +1,53 @@
 /**
  * `upload/engine/engine.spec.ts`
- * - drives the engine against a fake `UploadService` built from the contract fixtures
+ * - drives the engine against a fake `UploadSupportable` built from the contract fixtures
  *   (`lemon-model/upload/testing`), so a client spec and a server spec assert the same payloads.
  *
  * @copyright (C) 2026 LemonCloud Co Ltd. - All Rights Reserved.
  */
 import { expect2 } from '../../cores/index.spec';
 import type {
-    UploadCompleteBody,
+    UploadCompleteRequest,
     UploadCompleteResult,
-    UploadService,
-    UploadStartBody,
+    UploadStartRequest,
     UploadStartResult,
+    UploadSupportable,
     UploadTicket,
-    UploadView,
+    Upload,
 } from '../types';
 import { UPLOAD_FAILURE_CODE, UPLOAD_FAILURE_SOURCE, UPLOAD_STATUS, UPLOAD_TRANSFER_KIND } from '../types';
-import { SAMPLE_UPLOAD_TICKET_INLINE, SAMPLE_UPLOAD_TICKET_PRESIGNED } from '../testing';
-import type { UploadSource, UploadTransferExecutor } from './engine';
+import {
+    SAMPLE_UPLOAD_TICKET_INLINE,
+    SAMPLE_UPLOAD_TICKET_PRESIGNED,
+    SAMPLE_UPLOAD_TICKET_THUMBNAIL_ONLY,
+} from '../testing';
+import type { UploadContentSource, UploadSource, UploadTransferExecutor } from './engine';
 import { UploadEngine } from './engine';
-import type { InlineSendCall } from './executors';
-import { InlineExecutor } from './executors';
+import type { InlineSendCall, RawPut } from './executors';
+import { InlineExecutor, PresignedPutExecutor } from './executors';
 import type { UploadBatchProgress } from './progress';
 import { UploadProgressTracker } from './progress';
 
 /** a `start` answer of exactly these tickets; `complete` settles each item by its `failure` */
-class FakeUploadService implements UploadService {
-    public readonly started: UploadStartBody[] = [];
-    public readonly completed: UploadCompleteBody[] = [];
+class FakeUploadService implements UploadSupportable {
+    public readonly started: UploadStartRequest[] = [];
+    public readonly completed: UploadCompleteRequest[] = [];
 
     public constructor(private readonly tickets: UploadTicket[]) {}
 
-    public async start(body: UploadStartBody): Promise<UploadStartResult> {
+    public async start(body: UploadStartRequest): Promise<UploadStartResult> {
         this.started.push(body);
         return { list: this.tickets };
     }
 
-    public async send(): Promise<UploadView> {
+    public async send(): Promise<Upload> {
         throw new Error('400 INVALID - send() must go through the executor');
     }
 
-    public async complete(body: UploadCompleteBody): Promise<UploadCompleteResult> {
+    public async complete(body: UploadCompleteRequest): Promise<UploadCompleteResult> {
         this.completed.push(body);
         const list = body.list.map(
-            (item): UploadView => ({
+            (item): Upload => ({
                 id: item.id,
                 status: item.failure ? UPLOAD_STATUS.failed : UPLOAD_STATUS.stored,
                 url: item.failure ? undefined : `https://cdn.example.com/${item.id}.png`,
@@ -52,7 +56,7 @@ class FakeUploadService implements UploadService {
         return { list };
     }
 
-    public async read(): Promise<UploadView> {
+    public async read(): Promise<Upload> {
         throw new Error('404 NOT FOUND - read() not wired');
     }
 }
@@ -62,6 +66,13 @@ const sourceOf = (name: string, contentSize: number): UploadSource => ({
     contentType: 'image/png',
     contentSize,
     bytes: async () => new Uint8Array(4),
+});
+
+/** a payload with no name of its own — what `UploadSource.thumbnail` is */
+const contentOf = (contentSize: number): UploadContentSource => ({
+    contentType: 'image/jpeg',
+    contentSize,
+    bytes: async () => new Uint8Array(2),
 });
 
 /** encoder stub: the executor only forwards the string, so real base64 is not needed here */
@@ -200,5 +211,66 @@ describe('upload/engine', () => {
             { id: 'up-004' },
         ]);
         expect2(() => views.map(view => view.status)).toEqual(['failed', 'stored']);
+    });
+
+    it('sends the thumbnail when the ticket carries only `thumbnailTransfer` (a stored upload taking a preview)', async () => {
+        const service = new FakeUploadService([SAMPLE_UPLOAD_TICKET_THUMBNAIL_ONLY]);
+        const puts: string[] = [];
+        const put: RawPut = async url => {
+            puts.push(url);
+            return { status: 200 };
+        };
+        const engine = new UploadEngine(service, [new PresignedPutExecutor(put)]);
+
+        await engine.upload([{ ...sourceOf('photo.png', 1000), thumbnail: contentOf(200) }]);
+
+        // the original's bytes are immutable, so only the thumbnail moves
+        expect2(() => puts.length).toEqual(1);
+        expect2(() => puts[0].indexOf('up-001-thumb') > 0).toEqual(true);
+        // and the slot is still confirmed through complete, without a failure
+        expect2(() => service.completed[0].list).toEqual([{ id: 'up-001' }]);
+    });
+
+    it('never fails the upload when the thumbnail transfer throws', async () => {
+        const service = new FakeUploadService([SAMPLE_UPLOAD_TICKET_THUMBNAIL_ONLY]);
+        const put: RawPut = async () => {
+            throw new Error('thumbnail put exploded');
+        };
+        const engine = new UploadEngine(service, [new PresignedPutExecutor(put)]);
+
+        const uploads = await engine.upload([{ ...sourceOf('photo.png', 1000), thumbnail: contentOf(200) }]);
+
+        expect2(() => service.completed[0].list).toEqual([{ id: 'up-001' }]);
+        expect2(() => uploads.map(upload => upload.status)).toEqual(['stored']);
+    });
+
+    it('counts thumbnail bytes in the batch total so the bar is not full while bytes still move', async () => {
+        const service = new FakeUploadService([SAMPLE_UPLOAD_TICKET_THUMBNAIL_ONLY]);
+        // report the whole body at once so the sink sees a real intermediate value
+        const put: RawPut = async (_url, _headers, _body, onProgress) => {
+            if (onProgress) onProgress(1, 1);
+            return { status: 200 };
+        };
+        const engine = new UploadEngine(service, [new PresignedPutExecutor(put)]);
+        const snapshots: UploadBatchProgress[] = [];
+
+        await engine.upload([{ ...sourceOf('photo.png', 1000), thumbnail: contentOf(200) }], p => snapshots.push(p));
+
+        expect2(() => snapshots[0].totalBytes).toEqual(1200);
+        const last = snapshots[snapshots.length - 1];
+        expect2(() => [last.sentBytes, last.ratio]).toEqual([1200, 1]);
+    });
+
+    it('leaves a source without a thumbnail exactly as it was', async () => {
+        const service = new FakeUploadService([ticketOf('up-002')]);
+        const engine = new UploadEngine(service, [new InlineExecutor(sendOk(), toBase64)]);
+        const snapshots: UploadBatchProgress[] = [];
+
+        const uploads = await engine.upload([sourceOf('a.png', 100)], p => snapshots.push(p));
+
+        expect2(() => service.started[0].list).toEqual([{ name: 'a.png', contentType: 'image/png', contentSize: 100 }]);
+        expect2(() => service.completed[0].list).toEqual([{ id: 'up-002' }]);
+        expect2(() => uploads.map(upload => upload.status)).toEqual(['stored']);
+        expect2(() => [snapshots[0].totalBytes, snapshots[snapshots.length - 1].ratio]).toEqual([100, 1]);
     });
 });

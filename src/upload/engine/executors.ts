@@ -11,11 +11,11 @@ import type {
     UploadCompleteItem,
     UploadInlineTransfer,
     UploadPresignedPutTransfer,
-    UploadSendBody,
-    UploadView,
+    UploadSendRequest,
+    Upload,
 } from '../types';
 import { UPLOAD_FAILURE_CODE, UPLOAD_FAILURE_SOURCE, UPLOAD_TRANSFER_KIND } from '../types';
-import type { UploadSource, UploadTransferExecutor } from './engine';
+import type { UploadContentSource, UploadTransferExecutor } from './engine';
 import { asApiFailure, asStorageFailure } from './engine';
 import type { UploadProgressSink, UploadWireProgress } from './progress';
 import { asContentBytes } from './progress';
@@ -25,9 +25,9 @@ import { asContentBytes } from './progress';
  * - a fetch-based API adapter is `(id, body) => service.send(id, body)` and reports nothing;
  * - an `XMLHttpRequest`-based one forwards `upload.onprogress` through `onProgress`.
  */
-export type InlineSendCall = (id: string, body: UploadSendBody, onProgress?: UploadWireProgress) => Promise<UploadView>;
+export type InlineSendCall = (id: string, body: UploadSendRequest, onProgress?: UploadWireProgress) => Promise<Upload>;
 
-/** roadmap 1 — the only place that knows bytes go to our API as base64 */
+/** inline transfer — the only place that knows bytes go to the API as base64 */
 export class InlineExecutor implements UploadTransferExecutor<UploadInlineTransfer> {
     public readonly kind = UPLOAD_TRANSFER_KIND.inline;
 
@@ -40,14 +40,14 @@ export class InlineExecutor implements UploadTransferExecutor<UploadInlineTransf
     public async run(
         id: string,
         transfer: UploadInlineTransfer,
-        source: UploadSource,
+        source: UploadContentSource,
         onProgress: UploadProgressSink,
     ): Promise<UploadCompleteItem> {
         if (source.contentSize > transfer.maxBytes) {
             return { id, failure: { source: UPLOAD_FAILURE_SOURCE.client, code: UPLOAD_FAILURE_CODE.tooLarge } };
         }
         try {
-            const body: UploadSendBody = { content: this.toBase64(await source.bytes()) };
+            const body: UploadSendRequest = { content: this.toBase64(await source.bytes()) };
             // wire bytes are base64 JSON (~4/3 of the send): report in send bytes
             await this.send(id, body, (loaded, total) => onProgress(asContentBytes(loaded, total, source.contentSize)));
             return { id };
@@ -68,7 +68,7 @@ export type RawPut = (
     onProgress?: UploadWireProgress,
 ) => Promise<{ status: number; code?: string }>;
 
-/** roadmap 2 — added next to `InlineExecutor`; `UploadEngine` is untouched */
+/** presigned PUT transfer — raw bytes straight to storage */
 export class PresignedPutExecutor implements UploadTransferExecutor<UploadPresignedPutTransfer> {
     public readonly kind = UPLOAD_TRANSFER_KIND.presignedPut;
 
@@ -77,7 +77,7 @@ export class PresignedPutExecutor implements UploadTransferExecutor<UploadPresig
     public async run(
         id: string,
         transfer: UploadPresignedPutTransfer,
-        source: UploadSource,
+        source: UploadContentSource,
         onProgress: UploadProgressSink,
     ): Promise<UploadCompleteItem> {
         const res = await this.put(transfer.url, transfer.headers, await source.bytes(), (loaded, total) =>
