@@ -18,8 +18,9 @@
 export const UPLOAD_STEREO = {
     image: 'image',
     video: 'video',
-    sound: 'sound',
-    docs: 'docs',
+    audio: 'audio',
+    /** any file that is not an image, video or audio */
+    file: 'file',
 } as const;
 export type UploadStereo = typeof UPLOAD_STEREO[keyof typeof UPLOAD_STEREO];
 
@@ -263,12 +264,16 @@ export const UPLOAD_ROUTES = {
     read: { method: 'GET', path: '/{id}' },
 } as const;
 
-/** shared stereo derivation so an optimistic client tile and the server agree */
+/**
+ * shared stereo derivation so an optimistic client tile and the server agree.
+ * - classifies by the top-level media type; any other non-empty type is `file`.
+ * - classification only: which types a server accepts is that server's own policy.
+ */
 export const uploadStereoOf = (contentType: string): UploadStereo | undefined => {
     const type = contentType.toLowerCase().split(';')[0].trim();
+    if (!type) return undefined;
     if (type.startsWith('image/')) return UPLOAD_STEREO.image;
     if (type.startsWith('video/')) return UPLOAD_STEREO.video;
-    if (type.startsWith('audio/')) return UPLOAD_STEREO.sound;
-    if (type === 'application/pdf') return UPLOAD_STEREO.docs;
-    return undefined;
+    if (type.startsWith('audio/')) return UPLOAD_STEREO.audio;
+    return UPLOAD_STEREO.file;
 };

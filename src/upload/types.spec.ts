@@ -41,17 +41,37 @@ describe('upload/types', () => {
         it('maps image/video/audio/pdf content types to their stereo', () => {
             expect2(() => uploadStereoOf('image/png')).toEqual(UPLOAD_STEREO.image);
             expect2(() => uploadStereoOf('video/mp4')).toEqual(UPLOAD_STEREO.video);
-            expect2(() => uploadStereoOf('audio/mpeg')).toEqual(UPLOAD_STEREO.sound);
-            expect2(() => uploadStereoOf('application/pdf')).toEqual(UPLOAD_STEREO.docs);
+            expect2(() => uploadStereoOf('audio/mpeg')).toEqual(UPLOAD_STEREO.audio);
+            expect2(() => uploadStereoOf('application/pdf')).toEqual(UPLOAD_STEREO.file);
         });
 
         it('is case-insensitive and ignores a charset parameter', () => {
             expect2(() => uploadStereoOf('IMAGE/PNG')).toEqual(UPLOAD_STEREO.image);
             expect2(() => uploadStereoOf('image/png; charset=binary')).toEqual(UPLOAD_STEREO.image);
+            expect2(() => uploadStereoOf('TEXT/PLAIN; charset=utf-8')).toEqual(UPLOAD_STEREO.file);
         });
 
-        it('returns undefined for an unsupported content type', () => {
-            expect2(() => uploadStereoOf('application/zip')).toEqual(undefined);
+        it('returns undefined only for an empty or blank content type; any other type is file', () => {
+            expect2(() => uploadStereoOf('application/pdf')).toEqual(UPLOAD_STEREO.file);
+            expect2(() =>
+                uploadStereoOf('application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+            ).toEqual(UPLOAD_STEREO.file);
+            expect2(() => uploadStereoOf('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')).toEqual(
+                UPLOAD_STEREO.file,
+            );
+            expect2(() =>
+                uploadStereoOf('application/vnd.openxmlformats-officedocument.presentationml.presentation'),
+            ).toEqual(UPLOAD_STEREO.file);
+            expect2(() => uploadStereoOf('application/x-hwp')).toEqual(UPLOAD_STEREO.file);
+            expect2(() => uploadStereoOf('application/hwp+zip')).toEqual(UPLOAD_STEREO.file);
+            expect2(() => uploadStereoOf('text/plain')).toEqual(UPLOAD_STEREO.file);
+            expect2(() => uploadStereoOf('application/haansofthwp')).toEqual(UPLOAD_STEREO.file);
+            expect2(() => uploadStereoOf('application/vnd.hancom.hwp')).toEqual(UPLOAD_STEREO.file);
+            expect2(() => uploadStereoOf('application/vnd.hancom.hwpx')).toEqual(UPLOAD_STEREO.file);
+            expect2(() => uploadStereoOf('application/zip')).toEqual(UPLOAD_STEREO.file);
+            expect2(() => uploadStereoOf('application/octet-stream')).toEqual(UPLOAD_STEREO.file);
+            expect2(() => uploadStereoOf('')).toEqual(undefined);
+            expect2(() => uploadStereoOf('   ')).toEqual(undefined);
         });
     });
 
@@ -60,8 +80,8 @@ describe('upload/types', () => {
             expect2(() => UPLOAD_STEREO).toEqual({
                 image: 'image',
                 video: 'video',
-                sound: 'sound',
-                docs: 'docs',
+                audio: 'audio',
+                file: 'file',
             });
         });
 
