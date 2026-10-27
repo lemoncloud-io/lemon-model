@@ -31,6 +31,7 @@ Frontend bundlers use the ESM build. Existing Node `require()` consumers use the
 | --- | --- | --- |
 | `types` | Shared request, identity, storage, and service shapes | Source types |
 | `cores` | Small shared transform helpers | Source tests |
+| `fields` | `@field()` annotations and `fieldsOf()` for model classes | `## Fields` below |
 | `socket` | Peer socket, network contract, WebSocket bridge, JSON chunk transport | `src/socket/README.md` |
 | `buffer` | Provider-neutral GenAI stream buffering and network adapters | `src/buffer/README.md` |
 | `genai` | Gemini-like `generateContent()` adapter over Lemon agents APIs | `src/genai/README.md` |
@@ -91,6 +92,28 @@ Use it when a provider emits small stream fragments and the app needs consistent
 The network adapter can send `GenAIStreamEvent` over the shared socket/json-transport layer. Diagnostic helpers live under `lemon-model/buffer/testing`.
 
 Provider probe tools are available under `tools/`, but provider SDKs are not part of the runtime package contract. Install the matching SDK in the workspace where you run a probe.
+
+## Fields
+
+`@field()` marks the stored fields of a model class; `fieldsOf()` lists them (since 1.6.0).
+
+```ts
+import { CoreModel, field, fieldsOf } from 'lemon-model';
+
+class PetModel extends CoreModel<'pet'> {
+    @field({ group: 'head' }) name?: string;
+    @field() age?: number;
+}
+fieldsOf(PetModel); // 16 CoreModel fields, then 'name', 'age'
+fieldsOf(PetModel, { group: 'head' }); // ['name']
+```
+
+- Order: declaration order, parent first. A redeclared field (`@field({ group: 'head' }) declare name?: string;`) keeps the parent position; options merge, child wins per key.
+- Options: `kind` (`data` default, `view`, `internal`), `group` (string or string[]). `specsOf(cls)` returns `{ name, kind, group, own }`.
+- `CORE_FIELDS` = `fieldsOf(CoreModel, { kinds: ['view', 'data'] })` (14). `fieldsOf(CoreModel)` adds `id`, `_id` (16).
+- Modes: legacy decorators (`experimentalDecorators: true`) and TS 5 standard decorators both work. The `fields` module sets `Symbol.metadata ??= Symbol.for('Symbol.metadata')` once for standard mode.
+- Storage: the list lives on the class under `Symbol.for('lemon-model:fields:v1')` (`FIELDS_KEY`), so the CJS and the ESM build read each other's lists. No `reflect-metadata`.
+- Compare field lists as sets in tests, not by order.
 
 ## Build Formats
 

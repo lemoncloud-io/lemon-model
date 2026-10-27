@@ -1,4 +1,6 @@
 module.exports = {
+    // stop at this folder: do not merge a parent checkout's config (git worktrees)
+    root: true,
     parser: '@typescript-eslint/parser',
     extends: ['plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended', 'prettier'],
     parserOptions: {
