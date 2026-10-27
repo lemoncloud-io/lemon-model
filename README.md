@@ -95,7 +95,7 @@ Provider probe tools are available under `tools/`, but provider SDKs are not par
 
 ## Fields
 
-`@field()` marks the stored fields of a model class; `fieldsOf()` lists them (since 1.6.0).
+`@field()` marks the stored fields of a model class; `fieldsOf()` lists them (since 5.0.0).
 
 ```ts
 import { CoreModel, field, fieldsOf } from 'lemon-model';
