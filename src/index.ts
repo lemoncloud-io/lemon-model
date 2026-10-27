@@ -16,3 +16,5 @@ export * from './buffer';
 export * from './sync';
 export * from './progress';
 export * from './logtrace';
+// field annotations: `field`, `fieldsOf`, `specsOf`, `FIELDS_KEY` (lemon-core v5 B4)
+export * from './fields';
