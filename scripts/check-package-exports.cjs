@@ -45,7 +45,7 @@ const engineOnlyExports = [
     'PresignedPutExecutor',
 ];
 
-/** Field annotation exports that the root barrel must expose in both module systems (B4, 1.6.0). */
+/** Field annotation exports that the root barrel must expose in both module systems (B4, 5.0.0). */
 const fieldRootExports = ['field', 'fieldsOf', 'specsOf', 'FIELDS_KEY', 'CoreModel'];
 
 /** Return runtime export names that should be shared between CommonJS and ESM. */

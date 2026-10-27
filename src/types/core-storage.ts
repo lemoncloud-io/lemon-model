@@ -71,7 +71,7 @@ export interface InternalModel extends CoreModifier {
 /**
  * class: `CoreModel`
  * - general model out of base Model to support the common usage
- * - a class (not an interface) since 1.6.0: the fields carry `@field()` so `fieldsOf(CoreModel)` lists them.
+ * - a class (not an interface) since 5.0.0: the fields carry `@field()` so `fieldsOf(CoreModel)` lists them.
  * - keep public optional fields only (no methods, no private members): object literals and
  *   `interface X extends CoreModel` must keep compiling.
  */
