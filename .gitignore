@@ -892,4 +892,5 @@ MigrationBackup/
 graphify-out/
 
 # git worktrees of this repo (agent lanes)
+.wt
 .wt/
