@@ -10,6 +10,7 @@
  * @date        2024-12-20 optimized `NextIdentityCognito`
  * @date        2025-05-13 optimized `NextContext` with `Authorization` header
  * @date        2025-06-12 optimized `SearchBody` with `knn` support
+ * @date        2026-10-30 v5 B13: `NextContext.channel` and `NextContext.trace` (`NextTrace`).
  *
  * @copyright   (C) lemoncloud.io 2019 - All Rights Reserved.
  */
@@ -262,6 +263,44 @@ export interface NextContext<T extends NextIdentity = NextIdentity> {
      * calling depth for every handler. ( automatically increased from lambda-handler )
      */
     depth?: number;
+    /**
+     * (optional) the channel of this request, set once by the receiving entry (v5 B13).
+     * - `external`: a web request with a `host` header (API Gateway, ALB, Function URL).
+     * - `internal`: a host-less web event (direct invoke) or a protocol call (relay, SNS, SQS).
+     * - `local`: the local express harness (local mode).
+     */
+    channel?: 'external' | 'internal' | 'local';
+    /**
+     * (optional) the trace of the call chain, set by the receiving entry (v5 B13).
+     */
+    trace?: NextTrace;
+}
+
+/**
+ * type: `NextTrace`
+ * - the trace of a call chain across internal hops (v5 B13).
+ */
+export interface NextTrace {
+    /**
+     * trace id: the requestId of the first entry of the chain.
+     */
+    tid: string;
+    /**
+     * hop count from the first entry (the first entry is `0`).
+     */
+    hop: number;
+    /**
+     * (optional) service uri of the direct caller (the previous hop).
+     */
+    via?: string;
+    /**
+     * (optional) requestId of the direct caller (the previous hop).
+     */
+    pid?: string;
+    /**
+     * (optional) the first request path uri of the chain (like `context.source`).
+     */
+    src?: string;
 }
 
 /**
