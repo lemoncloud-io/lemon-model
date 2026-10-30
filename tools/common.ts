@@ -11,6 +11,8 @@ export interface ImageArtifactOptions {
     extension?: string;
     source?: string;
     index?: number;
+    //* v5 B17: output folder (default `sample/image`, relative to cwd) — injectable for tests.
+    dir?: string;
 }
 
 export interface ProbeClock {
@@ -77,7 +79,7 @@ export const saveImageArtifact = (model: string, value: string, options?: ImageA
     const hash = crypto.createHash('sha256').update(bytes).digest('hex');
     const ext = options?.extension ?? imageExtension(parsed.mimeType);
     const fileName = `${hash}.${ext}`;
-    const file = path.join('sample', 'image', fileName);
+    const file = path.join(options?.dir ?? path.join('sample', 'image'), fileName);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     if (!fs.existsSync(file)) fs.writeFileSync(file, bytes);
     return {
