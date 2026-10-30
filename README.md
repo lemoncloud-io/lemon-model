@@ -31,6 +31,7 @@ Frontend bundlers use the ESM build. Existing Node `require()` consumers use the
 | --- | --- | --- |
 | `types` | Shared request, identity, storage, and service shapes | Source types |
 | `cores` | Small shared transform helpers | Source tests |
+| `fields` | `@field()` annotations and `fieldsOf()` for model classes | `## Fields` below |
 | `socket` | Peer socket, network contract, WebSocket bridge, JSON chunk transport | `src/socket/README.md` |
 | `buffer` | Provider-neutral GenAI stream buffering and network adapters | `src/buffer/README.md` |
 | `genai` | Gemini-like `generateContent()` adapter over Lemon agents APIs | `src/genai/README.md` |
@@ -92,6 +93,28 @@ The network adapter can send `GenAIStreamEvent` over the shared socket/json-tran
 
 Provider probe tools are available under `tools/`, but provider SDKs are not part of the runtime package contract. Install the matching SDK in the workspace where you run a probe.
 
+## Fields
+
+`@field()` marks the stored fields of a model class; `fieldsOf()` lists them (since 5.0.0).
+
+```ts
+import { CoreModel, field, fieldsOf } from 'lemon-model';
+
+class PetModel extends CoreModel<'pet'> {
+    @field({ group: 'head' }) name?: string;
+    @field() age?: number;
+}
+fieldsOf(PetModel); // 16 CoreModel fields, then 'name', 'age'
+fieldsOf(PetModel, { group: 'head' }); // ['name']
+```
+
+- Order: declaration order, parent first. A redeclared field (`@field({ group: 'head' }) declare name?: string;`) keeps the parent position; options merge, child wins per key.
+- Options: `kind` (`data` default, `view`, `internal`), `group` (string or string[]). `specsOf(cls)` returns `{ name, kind, group, own }`.
+- `CORE_FIELDS` = `fieldsOf(CoreModel, { kinds: ['view', 'data'] })` (14). `fieldsOf(CoreModel)` adds `id`, `_id` (16).
+- Modes: legacy decorators (`experimentalDecorators: true`) and TS 5 standard decorators both work. The `fields` module sets `Symbol.metadata ??= Symbol.for('Symbol.metadata')` once for standard mode.
+- Storage: the list lives on the class under `Symbol.for('lemon-model:fields:v1')` (`FIELDS_KEY`), so the CJS and the ESM build read each other's lists. No `reflect-metadata`.
+- Compare field lists as sets in tests, not by order.
+
 ## Build Formats
 
 - CommonJS entry: `dist/index.js`
@@ -124,6 +147,8 @@ See [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md)
 
 | Version   | Description
 |--         |--
+| 5.0.3     | (Unreleased) strict consumers: index signatures admit `undefined` (B17, TS2411 fix) — `GeneralItem` (so `SimpleSearchParam`) passes `strict` without `skipLibCheck`; devDependencies: typedoc/gh-pages/ttypescript/husky/lint-staged/ts-node removed, Jest 27 → 29 (ts-jest 29), `deepmerge` overridden by the dev-only `scripts/deepmerge-safe` (no upstream fix for GHSA-gcqx-w48m-w2h4), `npm audit` 0 (B17-d).
+| 5.0.2     | (2026-10-30) v5 B15: `NextIdentity.cid?`, `NextIdentity.aid?`; `NextContext.accountId` doc (receiving service's own account); `channel`/`trace` bundle label B13 -> B14.
 | 1.0.6     | optimized `SearchBody` with `knn` support.
 | 1.0.5     | optimized `NextIdentity` with `authorization`.
 | 1.0.4     | optimized `NextIdentity` with `referer` and `origin`.

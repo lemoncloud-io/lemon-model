@@ -45,6 +45,9 @@ const engineOnlyExports = [
     'PresignedPutExecutor',
 ];
 
+/** Field annotation exports that the root barrel must expose in both module systems (B4, 5.0.0). */
+const fieldRootExports = ['field', 'fieldsOf', 'specsOf', 'FIELDS_KEY', 'CoreModel'];
+
 /** Return runtime export names that should be shared between CommonJS and ESM. */
 const getPublicExportNames = loaded => {
     return Object.keys(loaded)
@@ -114,12 +117,27 @@ const assertEngineExcludedFromContract = contracts => {
     }
 };
 
+/** Assert the field annotation API (incl. the `CoreModel` class value) is on the root of one loaded entry. */
+const assertFieldExports = (label, loaded) => {
+    const missing = fieldRootExports.filter(name => loaded[name] === undefined);
+    if (missing.length) throw new Error(`${label} root misses field exports: ${missing.join(', ')}`);
+    if (typeof loaded.CoreModel !== 'function') throw new Error(`${label} root CoreModel is not a class value`);
+};
+
+/** Check the field annotation API on the CommonJS and the ESM root entry. */
+const checkFieldExports = async () => {
+    assertFieldExports('CommonJS', require('lemon-model'));
+    assertFieldExports('ESM', await import('lemon-model'));
+};
+
 (async () => {
     const contracts = loadCommonJSContracts();
     assertTestingExcludedFromRoot(contracts);
     assertUploadExcludedFromRoot(contracts);
     assertEngineExcludedFromContract(contracts);
     await checkESM(contracts);
+    // field annotation API must exist on both roots
+    await checkFieldExports();
     console.log('package exports smoke test passed');
 })().catch(error => {
     console.error(error);

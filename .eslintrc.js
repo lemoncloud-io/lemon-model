@@ -1,4 +1,6 @@
 module.exports = {
+    // stop at this folder: do not merge a parent checkout's config (git worktrees)
+    root: true,
     parser: '@typescript-eslint/parser',
     extends: ['plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended', 'prettier'],
     parserOptions: {
@@ -16,5 +18,10 @@ module.exports = {
         '@typescript-eslint/no-inferrable-types': 'off',
         '@typescript-eslint/no-empty-function': 'off',
         '@typescript-eslint/no-this-alias': 'off',
+        //* v5 B17: `_`-prefixed names mark intentionally unused params / omitted fields (e.g. `{ data: _data, ...rest }`).
+        '@typescript-eslint/no-unused-vars': [
+            'warn',
+            { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+        ],
     },
 };
