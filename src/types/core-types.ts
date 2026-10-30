@@ -10,7 +10,8 @@
  * @date        2024-12-20 optimized `NextIdentityCognito`
  * @date        2025-05-13 optimized `NextContext` with `Authorization` header
  * @date        2025-06-12 optimized `SearchBody` with `knn` support
- * @date        2026-10-30 v5 B13: `NextContext.channel` and `NextContext.trace` (`NextTrace`).
+ * @date        2026-10-30 v5 B14: `NextContext.channel` and `NextContext.trace` (`NextTrace`).
+ * @date        2026-10-30 v5 B15: `NextIdentity.cid` and `NextIdentity.aid`.
  *
  * @copyright   (C) lemoncloud.io 2019 - All Rights Reserved.
  */
@@ -88,6 +89,17 @@ export interface NextIdentity<T = any> {
      * @since ver2.2.3 2020/JUL/15
      */
     lang?: string;
+    /**
+     * (optional) cloud-id: the AWS account number of the cloud the identity belongs to (v5 B15).
+     * - empty means the same cloud as the receiving service.
+     * - a value different from the receiver's `NextContext.accountId` marks a cross-cloud request.
+     */
+    cid?: string;
+    /**
+     * (optional) auth-id: the id of the authentication record (`AuthModel`) behind this identity (v5 B15).
+     * - not an account id.
+     */
+    aid?: string;
     /**
      * (optional) internal last-error message
      * - if this is not empty, then DO NOT use this object.
@@ -234,7 +246,8 @@ export interface NextContext<T extends NextIdentity = NextIdentity> {
      */
     requestId?: string;
     /**
-     * id of aws account number from initial request. (ex: `085403634746` for lemon profile)
+     * id of the aws account number of the receiving service itself (from `invokedFunctionArn`).
+     * - not the account of the initial request (since lemon-core 5.0.6, v5 B14).
      */
     accountId?: string;
     /**
@@ -264,21 +277,21 @@ export interface NextContext<T extends NextIdentity = NextIdentity> {
      */
     depth?: number;
     /**
-     * (optional) the channel of this request, set once by the receiving entry (v5 B13).
+     * (optional) the channel of this request, set once by the receiving entry (v5 B14).
      * - `external`: a web request with a `host` header (API Gateway, ALB, Function URL).
      * - `internal`: a host-less web event (direct invoke) or a protocol call (relay, SNS, SQS).
      * - `local`: the local express harness (local mode).
      */
     channel?: 'external' | 'internal' | 'local';
     /**
-     * (optional) the trace of the call chain, set by the receiving entry (v5 B13).
+     * (optional) the trace of the call chain, set by the receiving entry (v5 B14).
      */
     trace?: NextTrace;
 }
 
 /**
  * type: `NextTrace`
- * - the trace of a call chain across internal hops (v5 B13).
+ * - the trace of a call chain across internal hops (v5 B14).
  */
 export interface NextTrace {
     /**
