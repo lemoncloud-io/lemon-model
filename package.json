@@ -1,6 +1,6 @@
 {
   "name": "lemon-model",
-  "version": "5.0.2",
+  "version": "5.0.3",
   "description": "Common shared model definitions for Lemon Micro-Service Platform",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
@@ -64,9 +64,15 @@
   },
   "typesVersions": {
     "*": {
-      "upload": ["dist/upload/index.d.ts"],
-      "upload/testing": ["dist/upload/testing.d.ts"],
-      "upload/engine": ["dist/upload/engine/index.d.ts"]
+      "upload": [
+        "dist/upload/index.d.ts"
+      ],
+      "upload/testing": [
+        "dist/upload/testing.d.ts"
+      ],
+      "upload/engine": [
+        "dist/upload/engine/index.d.ts"
+      ]
     }
   },
   "scripts": {
@@ -130,5 +136,8 @@
   "bugs": {
     "url": "https://github.com/lemoncloud-io/lemon-model/issues"
   },
-  "homepage": "https://github.com/lemoncloud-io/lemon-model#readme"
+  "homepage": "https://github.com/lemoncloud-io/lemon-model#readme",
+  "allowScripts": {
+    "fsevents@2.3.3": true
+  }
 }
