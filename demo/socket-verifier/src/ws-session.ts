@@ -235,7 +235,14 @@ export const createWsSession = (options: CreateWsSessionOptions): WsVerifierSess
         });
         store.updateConnection(id, { remoteConnectionId, reliable: reliableEnabled });
 
-        owned = createOwnedWebSocketNetwork({ url, socketFactory: () => ws! });
+        //* v5 B17: `ws` is a `let` that teardown() clears, so check it when the factory runs.
+        owned = createOwnedWebSocketNetwork({
+            url,
+            socketFactory: () => {
+                if (!ws) throw new Error(`@ws is closed - ${errScope}`);
+                return ws;
+            },
+        });
         const filtered = createFilteredNetwork(owned, raw => raw.includes('"type":"json:'));
         conditioned = createConditionedNetwork(filtered, () => condition, onTap);
         // subscribe the inbound observer before the transport attaches, so each chunk's `receive` is

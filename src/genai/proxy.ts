@@ -149,7 +149,9 @@ export class HttpAbstractGenAI implements ProxyGenAI {
 
     protected async waitTransport(task: () => Promise<unknown>): Promise<object> {
         if (!this.transport) throw new Error(`@transport is required when transportId is set - HttpAbstractGenAI`);
-        return this.transport.wait(this.transportId!, task);
+        //* v5 B17: callers only reach here with transportId set; guard the invariant instead of asserting it.
+        if (!this.transportId) throw new Error(`@transportId is required - HttpAbstractGenAI`);
+        return this.transport.wait(this.transportId, task);
     }
 
     protected asEndpoint(): string {
@@ -174,7 +176,7 @@ export class HttpAbstractGenAI implements ProxyGenAI {
 
     protected withoutSystemInstruction(config?: ProxyGenAIConfig): ProxyGenAIConfig | undefined {
         if (!config) return undefined;
-        const { systemInstruction, ...rest } = config;
+        const { systemInstruction: _systemInstruction, ...rest } = config;
         return Object.keys(rest).length > 0 ? rest : undefined;
     }
 

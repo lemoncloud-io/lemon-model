@@ -28,6 +28,11 @@ const nextPanelId = (): string => {
 /** payload comfortably larger than the default maxPacketBytes so a send splits into several chunks */
 const largePayload = (): unknown => ({ big: 'x'.repeat(DEFAULT_VERIFIER_CONDITION.maxPacketBytes + 2048) });
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+//* v5 B17: every listed connection has its session (spawnPanel sets both; removePanel drops both) — throw if not.
+const mustSession = (session: VerifierSession | undefined, id: string): VerifierSession => {
+    if (!session) throw new Error(`@session[${id}] is missing - App`);
+    return session;
+};
 
 const App = () => {
     const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot);
@@ -240,7 +245,7 @@ const App = () => {
                         <ConnectionPanel
                             key={connection.id}
                             connection={connection}
-                            session={sessionsRef.current.get(connection.id)!}
+                            session={mustSession(sessionsRef.current.get(connection.id), connection.id)}
                             store={store}
                             events={snapshot.events}
                             url={WS_URL}

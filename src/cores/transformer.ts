@@ -197,7 +197,7 @@ export abstract class AbstractTransformer<MyModel extends Model, MyView extends 
      *
      * @see Transformable.bodyToModel
      */
-    public bodyToModel(body: MyBody | any, isCreate?: boolean): MyModel {
+    public bodyToModel(body: MyBody | any, _isCreate?: boolean): MyModel {
         if (!body || typeof body !== 'object') return null;
         const model = {} as MyModel;
 

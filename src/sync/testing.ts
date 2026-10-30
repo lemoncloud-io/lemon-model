@@ -64,8 +64,12 @@ export const createPeerBridge = (options?: PeerBridgeOptions): PeerBridge => {
             return client.readyState;
         },
         ready: () => client.ready(),
-        send: (data: string) => clientNetwork!.send(data),
-        onMessage: handler => serverNetwork!.onMessage(handler),
+        send: (data: string) => clientNetwork.send(data),
+        //* v5 B17: `serverNetwork` is a `let` set by networkFactory, so re-check it lazily (same late binding as before).
+        onMessage: handler => {
+            if (!serverNetwork) throw new Error(`@peer bridge network capture failed - sync.testing.createPeerBridge`);
+            return serverNetwork.onMessage(handler);
+        },
         onError: handler => client.onError(handler),
         close: () => client.close(),
     };
