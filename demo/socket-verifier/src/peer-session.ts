@@ -53,7 +53,8 @@ const toTimelineEvent = (
     if (entry.location === 'peer.dispatch.result' && isResolvedKind(entry.type)) {
         const mid = entry.mid;
         const dispatchedAt = mid ? sentAt.get(mid) : undefined;
-        if (dispatchedAt === undefined) {
+        //* v5 B17: `!mid` is implied by `dispatchedAt === undefined`; spelled out so `mid` narrows below.
+        if (!mid || dispatchedAt === undefined) {
             return {
                 connectionId,
                 direction: 'in',
@@ -63,7 +64,7 @@ const toTimelineEvent = (
                 meta: { mid },
             };
         }
-        sentAt.delete(mid!);
+        sentAt.delete(mid);
         const elapsedMs = entry.time - dispatchedAt;
         return {
             connectionId,

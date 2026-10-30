@@ -162,9 +162,10 @@ export const createGenAIStreamNetworkReceiver = (
         }
         pending.set(packet.seq, packet);
         while (pending.has(nextSeq)) {
-            const ordered = pending.get(nextSeq)!;
+            const ordered = pending.get(nextSeq);
             pending.delete(nextSeq++);
-            deliver(ordered);
+            //* v5 B17: has() just held, so `ordered` is the stored packet (never undefined).
+            if (ordered) deliver(ordered);
         }
     };
 

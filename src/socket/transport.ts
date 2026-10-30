@@ -446,6 +446,12 @@ export const assembleJSON = <T extends object>(state: JSONReceiveState): T | und
     return root as T;
 };
 
+//* v5 B17: narrow reliable-mode state that the constructor sets together — throws only if that invariant breaks.
+const must = <V>(value: V | undefined | null, what: string): V => {
+    if (value === undefined || value === null) throw new Error(`@${what} is required - json.reliable`);
+    return value;
+};
+
 /** JSON response transport over NetworkSupportable. */
 export class JSONTransport<T extends object> implements JSONTransportSupportable<T> {
     public readonly network: NetworkSupportable;
@@ -650,8 +656,10 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
             return;
         }
 
-        if (this.reliable && this.settledReceived!.has(packet.tid)) {
-            if (this.settledReceived!.get(packet.tid)!.outcome === 'ok') this.sendAck(packet.tid);
+        //* v5 B17: one get() replaces has()+get() — settled entries are objects, so presence ⇔ defined.
+        const settled = this.reliable ? must(this.settledReceived, 'settledReceived').get(packet.tid) : undefined;
+        if (settled) {
+            if (settled.outcome === 'ok') this.sendAck(packet.tid);
             return;
         }
 
@@ -724,7 +732,7 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
 
     /** reliable send(): split once, register pendingSend, attempt delivery, arm the blind-resend timer. */
     private sendReliable(data: T): Promise<void> {
-        const reliable = this.reliable!;
+        const reliable = must(this.reliable, 'reliable');
         const split = splitJSON(data, this.options);
         const tid = split.tid;
 
@@ -745,7 +753,7 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
             resolve: resolvePromise,
             reject: rejectPromise,
         };
-        this.pendingSend!.set(tid, pending);
+        must(this.pendingSend, 'pendingSend').set(tid, pending);
         this.attemptSend(tid, pending);
 
         //! self-catch: keep returning the original promise so real listeners still observe
@@ -756,7 +764,7 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
 
     /** deliver (or re-deliver) the full pendingSend packet set; readyState!=='open' ticks don't count. */
     private attemptSend(tid: string, pending: PendingSend): void {
-        const reliable = this.reliable!;
+        const reliable = must(this.reliable, 'reliable');
         //! deadlineMs is a wall-clock cap independent of readyState — it still fires while the
         //! network stays permanently non-open, unlike maxAttempts which only counts open ticks.
         if (Date.now() - pending.startedAt >= reliable.deadlineMs) {
@@ -792,11 +800,12 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
     }
 
     private handleAck(packet: JSONAckPacket): void {
-        const pending = this.pendingSend?.get(packet.tid);
-        if (!pending) return; // unknown/already-settled tid — silently ignored
+        const pendingSend = this.pendingSend;
+        const pending = pendingSend?.get(packet.tid);
+        if (!pendingSend || !pending) return; // unknown/already-settled tid — silently ignored
 
         clearInterval(pending.resendTimer);
-        this.pendingSend!.delete(packet.tid);
+        pendingSend.delete(packet.tid);
         this.settleSend(packet.tid, 'ok');
         pending.resolve();
     }
@@ -825,7 +834,7 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
 
     private failSend(tid: string, pending: PendingSend, reason: string): void {
         clearInterval(pending.resendTimer);
-        this.pendingSend!.delete(tid);
+        must(this.pendingSend, 'pendingSend').delete(tid);
         try {
             this.network.send(JSON.stringify({ type: 'json:error', tid, error: reason } as JSONErrorPacket));
         } catch {
@@ -855,18 +864,19 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
         if (!reliable) return;
         this.clearNackTimer(tid);
         const timer = setTimeout(() => this.fireNack(tid), reliable.nackDebounceMs);
-        this.nackTimers!.set(tid, timer);
+        must(this.nackTimers, 'nackTimers').set(tid, timer);
     }
 
     private clearNackTimer(tid: string): void {
-        const timer = this.nackTimers?.get(tid);
-        if (!timer) return;
+        const nackTimers = this.nackTimers;
+        const timer = nackTimers?.get(tid);
+        if (!nackTimers || !timer) return;
         clearTimeout(timer);
-        this.nackTimers!.delete(tid);
+        nackTimers.delete(tid);
     }
 
     private fireNack(tid: string): void {
-        this.nackTimers!.delete(tid);
+        must(this.nackTimers, 'nackTimers').delete(tid);
         const state = this.states.get(tid);
         if (!state || state.emitted) return; // already completed/removed — nothing to nack
 
@@ -904,22 +914,24 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
     }
 
     private settleSend(tid: string, outcome: 'ok' | 'fail'): void {
-        const reliable = this.reliable!;
-        this.settledSend!.set(tid, { outcome, expiresAt: Date.now() + reliable.settledTtlMs });
-        this.sweepSettledMapSize(this.settledSend!, reliable.settledMaxEntries, 'send');
+        const reliable = must(this.reliable, 'reliable');
+        const settledSend = must(this.settledSend, 'settledSend');
+        settledSend.set(tid, { outcome, expiresAt: Date.now() + reliable.settledTtlMs });
+        this.sweepSettledMapSize(settledSend, reliable.settledMaxEntries, 'send');
     }
 
     private settleReceived(tid: string, outcome: 'ok' | 'fail'): void {
-        const reliable = this.reliable!;
-        this.settledReceived!.set(tid, { outcome, expiresAt: Date.now() + reliable.settledTtlMs });
-        this.sweepSettledMapSize(this.settledReceived!, reliable.settledMaxEntries, 'received');
+        const reliable = must(this.reliable, 'reliable');
+        const settledReceived = must(this.settledReceived, 'settledReceived');
+        settledReceived.set(tid, { outcome, expiresAt: Date.now() + reliable.settledTtlMs });
+        this.sweepSettledMapSize(settledReceived, reliable.settledMaxEntries, 'received');
     }
 
     private sweepSettledMaps(now: number): void {
         const reliable = this.reliable;
         if (!reliable) return;
-        this.sweepSettledMapTtl(this.settledSend!, now);
-        this.sweepSettledMapTtl(this.settledReceived!, now);
+        this.sweepSettledMapTtl(must(this.settledSend, 'settledSend'), now);
+        this.sweepSettledMapTtl(must(this.settledReceived, 'settledReceived'), now);
     }
 
     private sweepSettledMapTtl(map: Map<string, SettledEntry>, now: number): void {
@@ -938,7 +950,7 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
         while (map.size > maxEntries) {
             const victim = this.pickSettledEvictionVictim(map, now);
             if (victim === undefined) break;
-            const entry = map.get(victim)!;
+            const entry = must(map.get(victim), 'settled entry');
             map.delete(victim);
             if (entry.outcome === 'ok' && now < entry.expiresAt) {
                 this.log('warn', 'json reliable settled memory evicted before TTL', JSON_RELIABLE_SCOPE.evicted, {
@@ -953,7 +965,7 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
     private pickSettledEvictionVictim(map: Map<string, SettledEntry>, now: number): string | undefined {
         const oldest = map.keys().next().value;
         if (oldest === undefined) return undefined;
-        if (now >= map.get(oldest)!.expiresAt) return oldest;
+        if (now >= must(map.get(oldest), 'settled entry').expiresAt) return oldest;
         for (const [tid, entry] of map) {
             if (entry.outcome === 'fail') return tid;
         }
@@ -962,9 +974,11 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
 
     /** idempotent: settles in-flight sends as failed and clears reliable-mode timers. */
     private detachReliable(): void {
-        for (const [tid, pending] of this.pendingSend!) {
+        const pendingSend = must(this.pendingSend, 'pendingSend');
+        const nackTimers = must(this.nackTimers, 'nackTimers');
+        for (const [tid, pending] of pendingSend) {
             clearInterval(pending.resendTimer);
-            this.pendingSend!.delete(tid);
+            pendingSend.delete(tid);
             this.settleSend(tid, 'fail');
             pending.reject(
                 new JSONTransportReliableError(
@@ -973,9 +987,9 @@ export class JSONTransport<T extends object> implements JSONTransportSupportable
                 ),
             );
         }
-        for (const [tid, timer] of this.nackTimers!) {
+        for (const [tid, timer] of nackTimers) {
             clearTimeout(timer);
-            this.nackTimers!.delete(tid);
+            nackTimers.delete(tid);
         }
     }
 
