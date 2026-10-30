@@ -147,7 +147,8 @@ See [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md)
 
 | Version   | Description
 |--         |--
-| 5.0.2     | (Unreleased) v5 B15: `NextIdentity.cid?`, `NextIdentity.aid?`; `NextContext.accountId` doc (receiving service's own account); `channel`/`trace` bundle label B13 -> B14.
+| 5.0.3     | (Unreleased) strict consumers: index signatures admit `undefined` (B17, TS2411 fix) — `GeneralItem` (so `SimpleSearchParam`) passes `strict` without `skipLibCheck`.
+| 5.0.2     | (2026-10-30) v5 B15: `NextIdentity.cid?`, `NextIdentity.aid?`; `NextContext.accountId` doc (receiving service's own account); `channel`/`trace` bundle label B13 -> B14.
 | 1.0.6     | optimized `SearchBody` with `knn` support.
 | 1.0.5     | optimized `NextIdentity` with `authorization`.
 | 1.0.4     | optimized `NextIdentity` with `referer` and `origin`.

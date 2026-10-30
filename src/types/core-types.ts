@@ -12,6 +12,7 @@
  * @date        2025-06-12 optimized `SearchBody` with `knn` support
  * @date        2026-10-30 v5 B14: `NextContext.channel` and `NextContext.trace` (`NextTrace`).
  * @date        2026-10-30 v5 B15: `NextIdentity.cid` and `NextIdentity.aid`.
+ * @date        2026-10-30 v5 B17: `GeneralItem` index signature admits `undefined` (strict consumers, TS2411).
  *
  * @copyright   (C) lemoncloud.io 2019 - All Rights Reserved.
  */
@@ -37,7 +38,8 @@ export interface GeneralItem {
     /**
      * only has simple string or number (and in arrays)
      */
-    [key: string]: string | string[] | number | number[];
+    //* v5 B17: admit `undefined` so optional props of sub-types (`SimpleSearchParam`) pass under `strict` (TS2411).
+    [key: string]: string | string[] | number | number[] | undefined;
 }
 
 /**
