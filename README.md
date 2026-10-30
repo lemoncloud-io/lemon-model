@@ -147,7 +147,7 @@ See [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md)
 
 | Version   | Description
 |--         |--
-| 5.0.3     | (Unreleased) strict consumers: index signatures admit `undefined` (B17, TS2411 fix) — `GeneralItem` (so `SimpleSearchParam`) passes `strict` without `skipLibCheck`.
+| 5.0.3     | (Unreleased) strict consumers: index signatures admit `undefined` (B17, TS2411 fix) — `GeneralItem` (so `SimpleSearchParam`) passes `strict` without `skipLibCheck`; devDependencies: typedoc/gh-pages/ttypescript/husky/lint-staged/ts-node removed, Jest 27 → 29 (ts-jest 29), `deepmerge` overridden by the dev-only `scripts/deepmerge-safe` (no upstream fix for GHSA-gcqx-w48m-w2h4), `npm audit` 0 (B17-d).
 | 5.0.2     | (2026-10-30) v5 B15: `NextIdentity.cid?`, `NextIdentity.aid?`; `NextContext.accountId` doc (receiving service's own account); `channel`/`trace` bundle label B13 -> B14.
 | 1.0.6     | optimized `SearchBody` with `knn` support.
 | 1.0.5     | optimized `NextIdentity` with `authorization`.
